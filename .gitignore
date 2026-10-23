@@ -1,0 +1,6 @@
+# Настройки подключения с ключом Supabase — не публиковать (шаблон: config.example.ini)
+config.ini
+
+__pycache__/
+*.pyc
+.DS_Store

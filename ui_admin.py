@@ -27,6 +27,7 @@ class MenuAdminWindow(tk.Toplevel):
         self.editing_id = None  # None — добавление новой позиции
         self.refill_form = False  # заполнить форму при следующем выборе строки (после загрузки с сервера)
         self.busy = False
+        self.closed = False  # окно уничтожено: результаты фоновых запросов игнорируются
 
         self.title("Управление меню")
         self.minsize(760, 600)
@@ -124,20 +125,31 @@ class MenuAdminWindow(tk.Toplevel):
     def _run(self, task, on_ok, on_err):
         """Выполняет сетевой запрос в потоке, результат обрабатывает в потоке Tk."""
         self._set_busy(True)
+        # Результат передаётся через корневое окно: при выходе из аккаунта это окно
+        # уничтожается вместе с кассой, и команда after, поставленная на него, исчезла бы
+        root = self._root()
+
+        def deliver(callback, value):
+            try:
+                root.after(0, self._finish, callback, value)
+            except (RuntimeError, tk.TclError):
+                pass  # приложение уже закрыто
 
         def worker():
             try:
                 result = task()
             except AppError as e:
-                self.after(0, self._finish, on_err, e)
+                deliver(on_err, e)
             except Exception as e:  # непредвиденная ошибка не должна молча ронять поток
-                self.after(0, self._finish, on_err, AppError(f"Непредвиденная ошибка: {e}"))
+                deliver(on_err, AppError(f"Непредвиденная ошибка: {e}"))
             else:
-                self.after(0, self._finish, on_ok, result)
+                deliver(on_ok, result)
 
         threading.Thread(target=worker, daemon=True).start()
 
     def _finish(self, callback, value):
+        if self.closed:
+            return  # окно закрыли (выход из аккаунта), пока шёл запрос: виджетов уже нет
         self._set_busy(False)
         callback(value)
 
@@ -343,3 +355,7 @@ class MenuAdminWindow(tk.Toplevel):
         self.grab_release()
         self.destroy()
         self.on_close()
+
+    def destroy(self):
+        self.closed = True
+        super().destroy()

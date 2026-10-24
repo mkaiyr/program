@@ -123,9 +123,19 @@ class RefreshTest(unittest.TestCase):
         self.pump()
         return frame
 
-    def refresh(self, frame):
-        """Срабатывание таймера автообновления."""
+    @staticmethod
+    def fire_timer(frame):
+        """Срабатывание таймера автообновления: сработавший таймер уходит из очереди Tk.
+
+        Прямой вызов _auto_refresh без этого оставил бы настоящий таймер ждать в очереди,
+        а после закрытия экрана он ссылался бы на удалённую команду.
+        """
+        if frame.refresh_job is not None:
+            frame.after_cancel(frame.refresh_job)
         frame._auto_refresh()
+
+    def refresh(self, frame):
+        self.fire_timer(frame)
         self.pump()
 
     def test_interval_is_7_seconds(self):
@@ -229,8 +239,8 @@ class RefreshTest(unittest.TestCase):
         frame = self.screen(db)
         HeldThread.started.clear()
         with mock.patch.object(ui_kitchen.threading, "Thread", HeldThread):
-            frame._auto_refresh()        # запрос ушёл, ответа ещё нет
-            frame._auto_refresh()        # таймер сработал снова
+            self.fire_timer(frame)        # запрос ушёл, ответа ещё нет
+            self.fire_timer(frame)        # таймер сработал снова
             frame.reload()               # и ручное обновление
             self.assertEqual(len(HeldThread.started), 1)
             self.assertIsNotNone(frame.refresh_job)  # отложено до следующего срабатывания
@@ -244,7 +254,7 @@ class RefreshTest(unittest.TestCase):
         db.orders.append(order(2))
         HeldThread.started.clear()
         with mock.patch.object(ui_kitchen.threading, "Thread", HeldThread):
-            frame._auto_refresh()
+            self.fire_timer(frame)
             frame.destroy()              # выход из аккаунта, пока идёт запрос
             self.assertIsNone(frame.refresh_job)
             HeldThread.started.pop()()   # ответ пришёл после закрытия
@@ -257,7 +267,7 @@ class RefreshTest(unittest.TestCase):
         frame = self.screen(db)
         HeldThread.started.clear()
         with mock.patch.object(ui_kitchen.threading, "Thread", HeldThread):
-            frame._auto_refresh()
+            self.fire_timer(frame)
             HeldThread.started.pop()()   # ответ поставлен в очередь Tk...
             frame.destroy()              # ...а экран закрыли раньше, чем Tk его обработал
             self.pump()

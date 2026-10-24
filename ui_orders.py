@@ -22,6 +22,7 @@ class OrdersWindow(tk.Toplevel):
         self.on_auth_error = on_auth_error
         self.orders = {}  # id -> заказ из db.load_orders()
         self.busy = False
+        self.closed = False          # окно уничтожено: результаты фоновых запросов игнорируются
         self.reload_pending = False  # обновление, запрошенное во время другого запроса
 
         self.title("Заказы")
@@ -88,12 +89,15 @@ class OrdersWindow(tk.Toplevel):
     def _run(self, task, on_ok, on_err):
         """Выполняет сетевой запрос в потоке, результат обрабатывает в потоке Tk."""
         self._set_busy(True)
+        # Результат передаётся через корневое окно: при выходе из аккаунта это окно
+        # уничтожается вместе с кассой, и команда after, поставленная на него, исчезла бы
+        root = self._root()
 
         def deliver(callback, value):
             try:
-                self.after(0, self._finish, callback, value)
+                root.after(0, self._finish, callback, value)
             except (RuntimeError, tk.TclError):
-                pass  # окно уже закрыто (например, выход из аккаунта)
+                pass  # приложение уже закрыто
 
         def worker():
             try:
@@ -108,6 +112,8 @@ class OrdersWindow(tk.Toplevel):
         threading.Thread(target=worker, daemon=True).start()
 
     def _finish(self, callback, value):
+        if self.closed:
+            return  # окно закрыли (выход из аккаунта), пока шёл запрос: виджетов уже нет
         self._set_busy(False)
         callback(value)
         if self.reload_pending and not self.busy:
@@ -247,3 +253,7 @@ class OrdersWindow(tk.Toplevel):
         if self.busy:
             return
         self.destroy()
+
+    def destroy(self):
+        self.closed = True
+        super().destroy()

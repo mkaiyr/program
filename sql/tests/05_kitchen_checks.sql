@@ -8,9 +8,21 @@
 --
 -- Успех: последняя строка вывода — 'ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ'.
 -- Ошибка: выполнение остановится с текстом 'FAIL: ...' или с неожиданной ошибкой.
+--
+-- Актуально только ДО 08_bar_stations.sql: после неё кухня меняет статус своей
+-- части заказа (set_station_status), а не общий статус. Проверка после 08 —
+-- sql/tests/08_bar_stations_checks.sql.
 -- =====================================================================
 
 begin;
+
+do $$
+begin
+  if to_regclass('public.order_stations') is not null then
+    raise exception 'ПРОПУСК: уже применена 08_bar_stations.sql — запустите sql/tests/08_bar_stations_checks.sql';
+  end if;
+end;
+$$;
 
 -- ---------- Подготовка (от имени postgres) ----------
 

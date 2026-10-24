@@ -58,7 +58,7 @@ as $$
    where p_code ~ '^[0-9]{4,6}$'
      and p.employee_code = p_code
      and p.is_active
-     and p.role in ('cashier', 'admin');
+     and p.role in ('cashier', 'admin', 'kitchen', 'bar');
 $$;
 
 revoke all on function public.employee_login_email(text) from public;

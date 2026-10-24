@@ -18,6 +18,7 @@ class OrdersWindow(tk.Toplevel):
         super().__init__(master)
         self.db = db
         self.transitions = ROLE_TRANSITIONS.get(role, {})
+        self.is_admin = role == "admin"
         self.on_auth_error = on_auth_error
         self.orders = {}  # id -> заказ из db.load_orders()
         self.busy = False
@@ -61,6 +62,12 @@ class OrdersWindow(tk.Toplevel):
         self.next_btn = ttk.Button(actions, text="Сменить статус", style="Big.Primary.TButton",
                                    command=self.advance_status)
         self.next_btn.pack(side="left")
+        # Только администратор и только явно: все станции и заказ — «Готов»
+        self.force_btn = None
+        if self.is_admin:
+            self.force_btn = ttk.Button(actions, text="Готов принудительно", style="Danger.TButton",
+                                        command=self.force_ready)
+            self.force_btn.pack(side="left", padx=12)
 
         ttk.Label(root, text="Состав заказа", style="H2.TLabel").pack(anchor="w", pady=(4, 4))
         cols = ("name", "price", "qty", "sum")
@@ -170,11 +177,14 @@ class OrdersWindow(tk.Toplevel):
         order = self.orders.get(self._selected_id())
         next_status = self.transitions.get(order["status"]) if order else None
         if self.busy or next_status is None:
-            waiting = {"completed": "Заказ выдан", "accepted": "Ожидает кухню", "preparing": "Готовится на кухне"}
+            waiting = {"completed": "Заказ выдан", "accepted": "Ожидает приготовления", "preparing": "Готовится"}
             text = waiting.get(order["status"], "Сменить статус") if order else "Сменить статус"
             self.next_btn.config(text=text, state="disabled")
         else:
             self.next_btn.config(text=f"Отметить «{ORDER_STATUSES[next_status]}»", state="normal")
+        if self.force_btn is not None:
+            can_force = order is not None and order["status"] in ("accepted", "preparing") and not self.busy
+            self.force_btn.config(state="normal" if can_force else "disabled")
 
     # ---------- Смена статуса ----------
 
@@ -197,6 +207,24 @@ class OrdersWindow(tk.Toplevel):
         self._run(lambda: self.db.set_order_status(order_id, next_status),
                   lambda _r: self.reload(select_id=order_id,
                                          done_text=f"Заказ № {order_id}: статус «{label}»."),
+                  self._handle_error)
+
+    def force_ready(self):
+        if self.busy or not self.is_admin:
+            return
+        order = self.orders.get(self._selected_id())
+        if order is None or order["status"] not in ("accepted", "preparing"):
+            return
+        if not messagebox.askyesno(
+                "Готов принудительно",
+                f"Отметить заказ № {order['id']} готовым целиком?\n"
+                "Все станции (кухня и бар) будут отмечены «Готов», даже если ещё готовят.", parent=self):
+            return
+        order_id = order["id"]
+        self._show_status("Сохранение статуса...", "gray")
+        self._run(lambda: self.db.force_order_ready(order_id),
+                  lambda r: self.reload(select_id=order_id, done_text=(
+                      f"Заказ № {order_id}: «Готов» принудительно (станций отмечено: {r['stations_forced']}).")),
                   self._handle_error)
 
     # ---------- Ошибки и закрытие ----------

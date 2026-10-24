@@ -7,7 +7,7 @@ import ui_theme
 from config import ConfigError, load_config
 from db import Database
 from ui_login import LoginFrame
-from ui_kitchen import KitchenFrame
+from ui_kitchen import BarFrame, KitchenFrame
 from ui_order import OrderFrame
 
 
@@ -35,6 +35,8 @@ class App(tk.Tk):
         self.minsize(960, 600)
         if profile["role"] == "kitchen":
             self._show(KitchenFrame(self, self.db, profile, on_logout=self.logout))
+        elif profile["role"] == "bar":
+            self._show(BarFrame(self, self.db, profile, on_logout=self.logout))
         else:
             self._show(OrderFrame(self, self.db, profile, on_logout=self.logout))
 

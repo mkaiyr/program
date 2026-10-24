@@ -7,23 +7,32 @@ from decimal import Decimal
 import httpx
 from supabase import AuthApiError, AuthError, PostgrestAPIError, create_client
 
-ALLOWED_ROLES = ("cashier", "admin", "kitchen")
+ALLOWED_ROLES = ("cashier", "admin", "kitchen", "bar")
 CENT = Decimal("0.01")
 MAX_PRICE = Decimal("99999999.99")  # предел numeric(10, 2)
 PRICE_RE = re.compile(r"\d+([.,]\d{1,2})?")
 EMPLOYEE_CODE_RE = re.compile(r"[0-9]{4,6}")  # совпадает с profiles_employee_code_format
+MENU_CODE_RE = re.compile(r"[0-9]{1,8}")      # совпадает с menu_items_code_check (1..99999999)
 BAD_LOGIN = "Неверный код сотрудника или пароль."
 NO_NETWORK = "Нет связи с сервером. Проверьте интернет."
 
 # Статусы заказа и допустимые переходы (совпадают с sql/05_kitchen_status.sql)
 ORDER_STATUSES = {"accepted": "Принят", "preparing": "Готовится", "ready": "Готов", "completed": "Выдан"}
 NEXT_STATUS = {"accepted": "preparing", "preparing": "ready", "ready": "completed"}
-# Какие переходы показывать каждой роли (окончательно права проверяет set_order_status)
+# Какие переходы показывать каждой роли (окончательно права проверяет сервер).
+# Кухня и бар двигают только свою часть заказа (set_station_status, sql/08_bar_stations.sql);
+# общий статус «Готовится»/«Готов» сервер вычисляет из станций, поэтому set_order_status
+# допускает только выдачу (ready -> completed). Администратор может явно отметить заказ
+# готовым целиком — force_order_ready, отдельной кнопкой с подтверждением.
+STATION_TRANSITIONS = {"accepted": "preparing", "preparing": "ready"}
 ROLE_TRANSITIONS = {
-    "admin": NEXT_STATUS,
-    "kitchen": {"accepted": "preparing", "preparing": "ready"},
+    "admin": {"ready": "completed"},
+    "kitchen": STATION_TRANSITIONS,
+    "bar": STATION_TRANSITIONS,
     "cashier": {"ready": "completed"},
 }
+STATIONS = {"kitchen": "Кухня", "bar": "Бар"}
+STATION_ORDERS_RPC = {"kitchen": "kitchen_orders", "bar": "bar_orders"}
 ORDERS_LIMIT = 100  # сколько последних заказов показывать
 
 # Ошибки серверной функции create_order (поле message) -> (код для UI, текст)
@@ -42,11 +51,18 @@ RPC_ERRORS = {
     "INVALID_PRICE": ("invalid", "Цена должна быть больше нуля, не более двух знаков после запятой."),
     "NAME_TAKEN": ("invalid", "Позиция с таким названием уже есть в меню."),
     "NOT_FOUND": ("invalid", "Позиция не найдена. Обновите список."),
+    # Коды позиций меню (sql/07_menu_codes.sql)
+    "CODE_TAKEN": ("invalid", "Этот код уже занят другой позицией. Укажите другой или оставьте поле пустым."),
+    "INVALID_CODE": ("invalid", "Код — целое число от 1 до 99999999."),
+    "CODE_IMMUTABLE": ("invalid", "Код позиции изменить нельзя."),
     # Статусы заказов (sql/04_order_status.sql)
     "INVALID_STATUS": ("invalid", "Недопустимый статус заказа."),
     "ORDER_NOT_FOUND": ("order_changed", "Заказ не найден или недоступен. Список обновлён."),
     "INVALID_TRANSITION": ("order_changed", "Статус заказа уже изменён. Список обновлён."),
     "TRANSITION_NOT_ALLOWED": ("forbidden", "Этот переход статуса недоступен для вашей роли."),
+    # Станции (sql/08_bar_stations.sql)
+    "STATION_NOT_ALLOWED": ("forbidden", "Эта часть заказа готовится на другой станции."),
+    "INVALID_STATION": ("invalid", "Неизвестная станция приготовления."),
 }
 
 
@@ -101,10 +117,28 @@ def to_local_time(value, fmt="%d.%m.%Y %H:%M"):
         return str(value or "")
 
 
+def parse_menu_code(text):
+    """Код позиции из поля ввода: None — назначить автоматически."""
+    text = text.strip()
+    if not text:
+        return None
+    if not MENU_CODE_RE.fullmatch(text) or int(text) == 0:
+        raise AppError("Код — целое число от 1 до 99999999 (или оставьте поле пустым).", "invalid")
+    return int(text)
+
+
+def _check_station(station):
+    if station not in STATIONS:
+        raise AppError("Неизвестная станция приготовления.", "invalid")
+    return station
+
+
 def _api_error(e, default_text):
     """PostgrestAPIError -> AppError."""
     if e.code in ("PGRST301", "PGRST303") or "JWT" in (e.message or ""):
         return AppError("Сессия истекла. Войдите снова.", "auth")
+    if e.code == "42703":  # нет новой колонки: миграция ещё не выполнена
+        return AppError("База данных ещё не обновлена (не выполнена SQL-миграция). Обратитесь к администратору.")
     if e.message in RPC_ERRORS:
         code, text = RPC_ERRORS[e.message]
         return AppError(text.format(details=e.details or ""), code)
@@ -181,11 +215,11 @@ class Database:
         return profile
 
     def load_menu(self):
-        """Доступные позиции меню: [{id, name, category, price: Decimal}]."""
+        """Доступные позиции меню: [{id, code, name, category, price: Decimal}]."""
         try:
             result = (
                 self.client.table("menu_items")
-                .select("id, name, category, price")
+                .select("id, code, name, category, price")
                 .eq("is_available", True)
                 .order("category")
                 .order("name")
@@ -228,11 +262,11 @@ class Database:
     # Права проверяются на сервере: RLS для чтения и функции admin_* для записи.
 
     def load_all_menu(self):
-        """Все позиции меню, включая недоступные: [{id, name, category, price, is_available}]."""
+        """Все позиции меню, включая недоступные: [{id, code, name, category, price, is_available}]."""
         try:
             result = (
                 self.client.table("menu_items")
-                .select("id, name, category, price, is_available")
+                .select("id, code, name, category, price, is_available, station")
                 .order("category")
                 .order("name")
                 .execute()
@@ -256,21 +290,24 @@ class Database:
             raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
         return {**data, "price": to_money(data["price"])}
 
-    def add_menu_item(self, name, category, price_text):
+    def add_menu_item(self, name, category, price_text, code_text="", station="kitchen"):
+        """Новая позиция; пустой code_text — код назначит сервер (виден в ответе)."""
         name, category, price = check_menu_item(name, category, price_text)
-        return self._admin_rpc(
-            "admin_add_menu_item",
-            {"p_name": name, "p_category": category, "p_price": str(price)},
-            "Позиция не добавлена",
-        )
+        params = {"p_name": name, "p_category": category, "p_price": str(price)}
+        code = parse_menu_code(code_text)
+        if code is not None:
+            params["p_code"] = code
+        if _check_station(station) != "kitchen":  # 'kitchen' — значение по умолчанию на сервере
+            params["p_station"] = station
+        return self._admin_rpc("admin_add_menu_item", params, "Позиция не добавлена")
 
-    def update_menu_item(self, item_id, name, category, price_text):
+    def update_menu_item(self, item_id, name, category, price_text, station=None):
+        """station=None — не менять станцию; новая станция действует для новых заказов."""
         name, category, price = check_menu_item(name, category, price_text)
-        return self._admin_rpc(
-            "admin_update_menu_item",
-            {"p_id": item_id, "p_name": name, "p_category": category, "p_price": str(price)},
-            "Изменения не сохранены",
-        )
+        params = {"p_id": item_id, "p_name": name, "p_category": category, "p_price": str(price)}
+        if station is not None:
+            params["p_station"] = _check_station(station)
+        return self._admin_rpc("admin_update_menu_item", params, "Изменения не сохранены")
 
     def set_menu_item_available(self, item_id, available):
         return self._admin_rpc(
@@ -316,16 +353,22 @@ class Database:
         return orders
 
     def load_kitchen_orders(self):
-        """Активные заказы для кухни (RPC kitchen_orders): [{id, time, status, items}].
+        """Активные заказы для кухни — см. load_station_orders."""
+        return self.load_station_orders("kitchen")
 
-        Кухня не читает таблицы заказов напрямую: функция отдаёт только
-        названия блюд и количество, без цен и сумм.
+    def load_station_orders(self, station):
+        """Активные заказы станции (RPC kitchen_orders / bar_orders): [{id, time, status, items}].
+
+        status — статус части заказа этой станции; items — только её позиции
+        [{code, item_name, quantity}]. Таблицы заказов станции напрямую не читают:
+        функции отдают названия, коды и количество, без цен, сумм и кассира.
         """
         try:
-            result = self.client.rpc("kitchen_orders", {}).execute()
+            result = self.client.rpc(STATION_ORDERS_RPC[station], {}).execute()
         except PostgrestAPIError as e:
-            if e.code == "PGRST202":  # функции нет: не выполнена миграция 05
-                raise AppError("Экран кухни не настроен на сервере. Обратитесь к администратору.") from e
+            if e.code == "PGRST202":  # функции нет: не выполнена миграция 05/08
+                raise AppError(f"Экран «{STATIONS[station]}» не настроен на сервере. "
+                               "Обратитесь к администратору.") from e
             raise _api_error(e, "Не удалось загрузить заказы") from e
         except httpx.HTTPError as e:
             raise AppError(NO_NETWORK, "network") from e
@@ -367,6 +410,40 @@ class Database:
                            "network") from e
         data = result.data
         if not isinstance(data, dict) or data.get("is_available") is not bool(available):
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
+    def set_station_status(self, order_id, station, status):
+        """Кухня/бар: статус своей части заказа (RPC set_station_status)."""
+        try:
+            result = self.client.rpc(
+                "set_station_status", {"p_order_id": order_id, "p_station": station, "p_status": status}
+            ).execute()
+        except PostgrestAPIError as e:
+            if e.code == "PGRST202":  # функции нет: не выполнена миграция 08
+                raise AppError("Смена статуса станции не настроена на сервере. Обратитесь к администратору.") from e
+            raise _api_error(e, "Статус не изменён") from e
+        except httpx.HTTPError as e:
+            raise AppError("Нет связи с сервером. Статус не подтверждён — обновите список.",
+                           "network") from e
+        data = result.data
+        if not isinstance(data, dict) or data.get("status") != status or data.get("station") != station:
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
+    def force_order_ready(self, order_id):
+        """Администратор: все станции и заказ — «Готов» (RPC admin_force_order_ready)."""
+        try:
+            result = self.client.rpc("admin_force_order_ready", {"p_order_id": order_id}).execute()
+        except PostgrestAPIError as e:
+            if e.code == "PGRST202":  # функции нет: не выполнена миграция 08
+                raise AppError("Принудительная готовность не настроена на сервере.") from e
+            raise _api_error(e, "Статус не изменён") from e
+        except httpx.HTTPError as e:
+            raise AppError("Нет связи с сервером. Статус не подтверждён — обновите список.",
+                           "network") from e
+        data = result.data
+        if not isinstance(data, dict) or data.get("status") != "ready" or data.get("forced") is not True:
             raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
         return data
 

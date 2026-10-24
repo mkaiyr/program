@@ -8,10 +8,12 @@ from tkinter import messagebox, ttk
 
 import ui_theme as theme
 from db import AppError
+from search import find_by_code, search
 
 MAX_QTY = 100     # совпадает с ограничением order_items.quantity
 MAX_LINES = 50    # совпадает с проверкой в create_order
 TILE_COLUMNS = 3
+TILE_LIMIT = 60   # больше плиток не рисуется: при 500–1000 позициях окно остаётся быстрым
 ALL_CATEGORIES = "Все"
 
 
@@ -26,6 +28,7 @@ class OrderFrame(ttk.Frame):
         self.on_logout = on_logout
         self.menu = {}         # id -> {id, name, category, price}
         self.tiles = {}        # id -> кнопка-плитка в каталоге
+        self.catalog_job = None  # отложенная перерисовка каталога при вводе в поиск
         self.cart = {}         # id -> {name, price, qty}
         self.request_id = None  # один ID на неизменённый заказ (защита от дублей)
         self.busy = False
@@ -62,6 +65,16 @@ class OrderFrame(ttk.Frame):
         catalog = ttk.Frame(body)
         catalog.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
         self.category_var = tk.StringVar(value=ALL_CATEGORIES)
+        search_row = ttk.Frame(catalog)
+        search_row.pack(fill="x", pady=(0, 8))
+        ttk.Label(search_row, text="Код или название:").pack(side="left")
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add("write", lambda *_a: self._schedule_catalog())
+        self.search_entry = ttk.Entry(search_row, textvariable=self.search_var, font=theme.FONT_BIG, width=18)
+        self.search_entry.pack(side="left", padx=8)
+        self.search_entry.bind("<Return>", lambda _e: self.add_from_search())
+        ttk.Button(search_row, text="✕", width=2, command=lambda: self.search_var.set("")).pack(side="left")
+        ttk.Label(search_row, text="Enter — добавить по коду", style="Muted.TLabel").pack(side="left", padx=8)
         self.chips = ttk.Frame(catalog)
         self.chips.pack(fill="x", pady=(0, 8))
         self.catalog = theme.ScrollFrame(catalog)
@@ -158,23 +171,56 @@ class OrderFrame(ttk.Frame):
             ttk.Radiobutton(self.chips, text=category, value=category, variable=self.category_var,
                             style="Chip.Toolbutton", command=self._render_catalog).pack(side="left", padx=(0, 6))
 
+    def _schedule_catalog(self):
+        """Несколько нажатий подряд — одна перерисовка (когда Tk освободится)."""
+        if self.catalog_job is None:
+            self.catalog_job = self.after_idle(self._run_catalog)
+
+    def _run_catalog(self):
+        self.catalog_job = None
+        self._render_catalog()
+
+    def visible_items(self):
+        """Каталог с учётом категории и поиска по коду или названию (локально)."""
+        category = self.category_var.get()
+        items = [item for item in self.menu.values() if category in (ALL_CATEGORIES, item["category"])]
+        return search(items, self.search_var.get())
+
     def _render_catalog(self):
         self.catalog.clear()
         self.tiles.clear()
         inner = self.catalog.inner
-        category = self.category_var.get()
-        items = [item for item in self.menu.values() if category in (ALL_CATEGORIES, item["category"])]
+        items = self.visible_items()
         if not items:
-            ttk.Label(inner, text="Нет доступных блюд", style="H2.TLabel", foreground=theme.MUTED).grid(
-                row=0, column=0, pady=40)
+            text = "Ничего не найдено" if self.search_var.get().strip() else "Нет доступных блюд"
+            ttk.Label(inner, text=text, style="H2.TLabel", foreground=theme.MUTED).grid(row=0, column=0, pady=40)
             return
         for col in range(TILE_COLUMNS):
             inner.columnconfigure(col, weight=1, uniform="tiles")
-        for index, item in enumerate(items):
-            tile = ttk.Button(inner, text=f"{item['name']}\n{fmt_money(item['price'])}", style="Tile.TButton",
+        for index, item in enumerate(items[:TILE_LIMIT]):
+            code = f"{item['code']} · " if item.get("code") else ""
+            tile = ttk.Button(inner, text=f"{code}{item['name']}\n{fmt_money(item['price'])}", style="Tile.TButton",
                               command=lambda i=item["id"]: self.add_item(i))
             tile.grid(row=index // TILE_COLUMNS, column=index % TILE_COLUMNS, sticky="nsew", padx=4, pady=4)
             self.tiles[item["id"]] = tile
+        if len(items) > TILE_LIMIT:
+            ttk.Label(inner, text=f"Показаны первые {TILE_LIMIT} из {len(items)} — уточните поиск",
+                      style="Muted.TLabel").grid(row=TILE_LIMIT // TILE_COLUMNS + 1, column=0,
+                                                 columnspan=TILE_COLUMNS, pady=8)
+
+    def add_from_search(self):
+        """Enter в поиске: точный код или единственное найденное блюдо — в заказ."""
+        items = self.visible_items()
+        item = find_by_code(self.menu.values(), self.search_var.get()) or (items[0] if len(items) == 1 else None)
+        if item is None:
+            self._show_status("Введите точный код блюда или уточните название." if items
+                              else "Ничего не найдено.", "orange")
+            return
+        self.add_item(item["id"])
+        if item["id"] in self.cart:
+            self.search_var.set("")
+            self._show_status(f"Добавлено: {item['name']}", "green")
+        self.search_entry.focus_set()
 
     def _sync_cart_with_menu(self):
         """Убирает недоступные позиции и обновляет цены в заказе."""
@@ -324,6 +370,12 @@ class OrderFrame(ttk.Frame):
             self.reload_menu()
         elif error.code == "network":
             messagebox.showerror("Нет связи", str(error), parent=self)
+
+    def destroy(self):
+        if self.catalog_job is not None:
+            self.after_cancel(self.catalog_job)
+            self.catalog_job = None
+        super().destroy()
 
     def logout(self):
         if self.busy:

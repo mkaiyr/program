@@ -124,7 +124,7 @@ class FakeDB:
         self.items[item_id]["is_available"] = available
         return {"id": item_id, "name": self.items[item_id]["name"], "is_available": available}
 
-    def load_kitchen_orders(self):
+    def load_station_orders(self, station):
         return []
 
     def create_order(self, request_id, items):
@@ -170,7 +170,7 @@ class UiTest(unittest.TestCase):
         frame.reload_menu()
         self.assertTrue(frame.menu_pending)
         self.pump()
-        self.assertEqual(sorted(frame.menu_buttons), [1, 2])
+        self.assertEqual(sorted(frame.menu_buttons), sorted(self.db.items))
         return frame
 
     def cashier(self):
@@ -184,7 +184,7 @@ class UiTest(unittest.TestCase):
 
     def test_kitchen_menu_toggle(self):
         frame = self.kitchen_menu()
-        self.assertEqual(frame.menu_buttons[1]["text"], "Нет в наличии")
+        self.assertEqual(frame.menu_buttons[1]["text"], "Снять с продажи")
         frame.menu_buttons[1].invoke()
         self.pump()
         self.assertFalse(self.db.items[1]["is_available"])
@@ -213,9 +213,50 @@ class UiTest(unittest.TestCase):
 
     def test_kitchen_menu_has_no_prices(self):
         frame = self.kitchen_menu()
-        texts = [str(w["text"]) for w in _all_widgets(frame.menu_area.inner) if "text" in w.keys()]
+        texts = [str(w["text"]) for w in _all_widgets(frame.menu_panel) if "text" in w.keys()]
         self.assertIn("Капучино", texts)
         self.assertFalse(any("₸" in t or "1100" in t for t in texts), texts)
+
+    def test_kitchen_menu_filters_combine(self):
+        self.db.items[3] = dict(id=3, name="Капучино большой", category="Напитки", price=Decimal("1300.00"),
+                                is_available=False)
+        frame = self.kitchen_menu()
+        panel = frame.menu_panel
+        self.assertEqual(sorted(frame.menu_buttons), [1, 2, 3])
+        panel.category_var.set("Напитки")
+        self.assertEqual(sorted(frame.menu_buttons), [1, 3])
+        panel.availability_var.set("Нет в наличии")
+        self.assertEqual(sorted(frame.menu_buttons), [3])
+        panel.availability_var.set("В продаже")
+        panel.search_var.set("КАП")
+        self.pump()  # поиск перерисовывается отложенно (after_idle)
+        self.assertEqual(sorted(frame.menu_buttons), [1])
+        panel.search_var.set("круассан")  # есть, но не в категории «Напитки»
+        self.pump()
+        self.assertEqual(frame.menu_buttons, {})
+        texts = [str(w["text"]) for w in _all_widgets(panel.list.inner) if "text" in w.keys()]
+        self.assertIn("Блюда не найдены", texts)
+        panel.reset_filters()
+        self.assertEqual(sorted(frame.menu_buttons), [1, 2, 3])
+        self.assertEqual(str(panel.reset_btn["state"]), "disabled")
+
+    def test_kitchen_menu_card_updates_and_filters_kept(self):
+        frame = self.kitchen_menu()
+        panel = frame.menu_panel
+        panel.availability_var.set("В продаже")
+        frame.menu_buttons[1].invoke()   # снять с продажи (подтверждение — True)
+        self.pump()
+        self.assertFalse(self.db.items[1]["is_available"])
+        self.assertEqual(panel.availability_var.get(), "В продаже")  # фильтр сохранён после обновления
+        self.assertEqual(sorted(frame.menu_buttons), [2])            # карточка ушла из «В продаже»
+        panel.availability_var.set("Нет в наличии")
+        self.assertEqual(frame.menu_buttons[1]["text"], "Вернуть в продажу")
+        self.assertIn("Показано 1 из 2", panel.counts["text"])
+
+    def test_kitchen_menu_categories_from_data(self):
+        frame = self.kitchen_menu()
+        chips = [str(c["text"]) for c in frame.menu_panel.category_chips.winfo_children()]
+        self.assertEqual(chips, ["Все", "Выпечка", "Напитки"])
 
     # ---------- Касса ----------
 

@@ -1,23 +1,78 @@
-"""Экран кухни: карточки активных заказов и наличие блюд.
+"""Экран станции — кухни или бара: карточки активных заказов (и наличие блюд на кухне).
 
-Заказы приходят из RPC kitchen_orders (без цен и сумм), статус меняет
-RPC set_order_status (sql/05_kitchen_status.sql). Меню — RPC kitchen_menu и
-kitchen_set_menu_item_available (sql/06_kitchen_menu.sql): кухня меняет только
-наличие блюда. Права и переходы проверяет сервер.
+Станция определяется ролью: kitchen — кухня, bar — бар. Заказы приходят из RPC
+kitchen_orders / bar_orders — только позиции своей станции, без цен и сумм.
+Статус своей части заказа меняет RPC set_station_status (sql/08_bar_stations.sql):
+готовый напиток не делает готовым весь заказ. Меню кухни — RPC kitchen_menu и
+kitchen_set_menu_item_available (sql/06_kitchen_menu.sql): только наличие блюда.
+Права и переходы проверяет сервер.
 """
 
+import logging
+import sys
 import threading
 import tkinter as tk
+from collections import deque
 from tkinter import messagebox, ttk
 
 import ui_theme as theme
-from db import ORDER_STATUSES, ROLE_TRANSITIONS, AppError
+from db import ORDER_STATUSES, ROLE_TRANSITIONS, STATIONS, AppError
+from search import search
+from ui_kitchen_menu import KitchenMenuPanel
 
-AUTO_REFRESH_MS = 15000  # автообновление заказов, чтобы новые появлялись сами
+AUTO_REFRESH_MS = 7000  # автообновление заказов, чтобы новые появлялись сами
+SEEN_LIMIT = 5000       # сколько ID заказов помнить для защиты от повторного сигнала
 CARD_COLUMNS = 3
-MENU_CARD_WIDTH = 280  # примерная ширина карточки блюда: по ней считается число колонок
 ACTION = {"preparing": ("Начать готовить", "Big.Primary.TButton"),
           "ready": ("Готово", "Big.Success.TButton")}
+STAFF_TITLE = {"kitchen": "Повар", "bar": "Бармен"}
+
+log = logging.getLogger(__name__)
+
+
+def play_alert(widget):
+    """Короткий сигнал о новом заказе. Ошибка звука не мешает работе экрана."""
+    try:
+        if sys.platform == "win32":
+            import winsound
+            winsound.MessageBeep(winsound.MB_ICONASTERISK)  # не блокирует, без зависимостей
+        else:
+            widget.bell()
+    except Exception as e:  # нет звуковой системы и т. п.
+        log.debug("Звуковой сигнал недоступен: %s", e)
+
+
+class SeenOrders:
+    """ID заказов, уже показанных на экране в этой сессии (с ограничением памяти).
+
+    Заказ, который исчез и снова появился (смена статуса, поиск), повторно
+    новым не считается. При переполнении забываются самые старые ID — к тому
+    времени эти заказы давно не активны.
+    """
+
+    def __init__(self, limit=SEEN_LIMIT):
+        self.limit = limit
+        self._ids = set()
+        self._order = deque()
+
+    def __contains__(self, order_id):
+        return order_id in self._ids
+
+    def __len__(self):
+        return len(self._ids)
+
+    def add_new(self, order_ids):
+        """Запоминает ID и возвращает те, которых раньше не было (в исходном порядке)."""
+        new = []
+        for order_id in order_ids:
+            if order_id in self._ids:
+                continue
+            self._ids.add(order_id)
+            self._order.append(order_id)
+            new.append(order_id)
+        while len(self._order) > self.limit:
+            self._ids.discard(self._order.popleft())
+        return new
 
 
 class KitchenFrame(ttk.Frame):
@@ -25,18 +80,24 @@ class KitchenFrame(ttk.Frame):
         super().__init__(master, padding=16)
         self.db = db
         self.on_logout = on_logout
+        self.station = "bar" if profile["role"] == "bar" else "kitchen"
         self.transitions = ROLE_TRANSITIONS.get(profile["role"], {})
-        self.orders = {}          # id -> заказ из db.load_kitchen_orders()
+        self.orders = {}          # id -> заказ из db.load_station_orders()
+        self.order_list = []      # заказы в порядке поступления
         self.shown_orders = None  # что сейчас нарисовано (чтобы не перерисовывать без изменений)
+        self.search_job = None
+        self.menu_panel = None    # вкладка «Меню» — только у кухни
         self.menu = {}            # id -> блюдо из db.load_kitchen_menu()
         self.menu_loaded = False
         self.menu_pending = False  # меню запрошено, пока шёл другой запрос
         self.busy = False
         self.refresh_job = None
+        self.closed = False       # экран уничтожен: результаты фоновых запросов игнорируются
+        self.seen_orders = SeenOrders()
+        self.baseline_loaded = False  # первая успешная загрузка — без сигналов о «новых»
+        self.auto_error = False       # в строке статуса — ошибка автообновления
         self.action_buttons = {}  # id заказа -> кнопка смены статуса
         self.badges = {}          # id заказа -> бейдж статуса
-        self.menu_buttons = {}    # id блюда -> кнопка наличия
-        self.menu_columns = 0     # сколько колонок карточек блюд сейчас нарисовано
 
         self._build(profile)
         self.reload()
@@ -44,7 +105,8 @@ class KitchenFrame(ttk.Frame):
     # ---------- Разметка ----------
 
     def _build(self, profile):
-        top, right = theme.header(self, "Кухня", f"Повар: {profile['full_name']}")
+        top, right = theme.header(self, STATIONS[self.station],
+                                  f"{STAFF_TITLE[self.station]}: {profile['full_name']}")
         top.pack(fill="x", pady=(0, 12))
         self.logout_btn = ttk.Button(right, text="Выйти", command=self.logout)
         self.logout_btn.pack(side="right")
@@ -53,35 +115,32 @@ class KitchenFrame(ttk.Frame):
 
         self.tabs = ttk.Notebook(self)
         self.tabs.pack(fill="both", expand=True)
-        self.orders_area = theme.ScrollFrame(self.tabs)
-        self.tabs.add(self.orders_area, text="Заказы")
-        self.tabs.add(self._build_menu_tab(), text="Меню")
+        self.tabs.add(self._build_orders_tab(), text="Заказы")
+        if self.station == "kitchen":
+            self.menu_panel = KitchenMenuPanel(self.tabs, on_toggle=self.toggle_available)
+            self.tabs.add(self.menu_panel, text="Меню")
         self.tabs.bind("<<NotebookTabChanged>>", lambda _e: self._on_tab())
 
         self.status = ttk.Label(self, text="", style="Status.TLabel", wraplength=900)
         self.status.pack(fill="x", pady=(8, 0))
 
-    def _build_menu_tab(self):
+    def _build_orders_tab(self):
         tab = ttk.Frame(self.tabs, padding=(0, 10, 0, 0))
         bar = ttk.Frame(tab)
-        bar.pack(fill="x", pady=(0, 8), padx=6)
-        ttk.Label(bar, text="Поиск:").pack(side="left")
+        bar.pack(fill="x", padx=6, pady=(0, 6))
+        what = "напитка" if self.station == "bar" else "блюда"
+        ttk.Label(bar, text=f"Поиск по коду или названию {what}:").pack(side="left")
         self.search_var = tk.StringVar()
-        self.search_var.trace_add("write", lambda *_a: self._render_menu())
-        search = ttk.Entry(bar, textvariable=self.search_var, width=28)
-        search.pack(side="left", padx=8)
-        ttk.Button(bar, text="Очистить", command=lambda: self.search_var.set("")).pack(side="left")
-        self.menu_counts = ttk.Label(bar, text="", style="Muted.TLabel")
-        self.menu_counts.pack(side="right")
-
-        self.menu_area = theme.ScrollFrame(tab)
-        self.menu_area.pack(fill="both", expand=True)
-        # Число колонок зависит от ширины: без горизонтальной прокрутки и обрезанных кнопок
-        self.menu_area.canvas.bind("<Configure>", self._on_menu_resize, add="+")
+        self.search_var.trace_add("write", lambda *_a: self._schedule_search())
+        self.search_entry = ttk.Entry(bar, textvariable=self.search_var, width=24)
+        self.search_entry.pack(side="left", padx=8)
+        ttk.Button(bar, text="✕", width=2, command=lambda: self.search_var.set("")).pack(side="left")
+        self.orders_area = theme.ScrollFrame(tab)
+        self.orders_area.pack(fill="both", expand=True)
         return tab
 
     def _menu_tab_active(self):
-        return self.tabs.index(self.tabs.select()) == 1
+        return self.menu_panel is not None and self.tabs.index(self.tabs.select()) == 1
 
     def _on_tab(self):
         if self._menu_tab_active() and not self.menu_loaded:
@@ -93,11 +152,15 @@ class KitchenFrame(ttk.Frame):
         """Выполняет сетевой запрос в потоке, результат обрабатывает в потоке Tk."""
         self._set_busy(True)
 
+        # Результат передаётся через корневое окно: оно живёт дольше экрана (выход из
+        # аккаунта уничтожает только экран), и команда after не исчезнет вместе с ним
+        root = self._root()
+
         def deliver(callback, value):
             try:
-                self.after(0, self._finish, callback, value)
+                root.after(0, self._finish, callback, value)
             except (RuntimeError, tk.TclError):
-                pass  # экран уже закрыт (выход из аккаунта)
+                pass  # приложение уже закрыто
 
         def worker():
             try:
@@ -112,6 +175,8 @@ class KitchenFrame(ttk.Frame):
         threading.Thread(target=worker, daemon=True).start()
 
     def _finish(self, callback, value):
+        if self.closed:
+            return  # экран закрыли, пока шёл запрос: виджетов уже нет
         self._set_busy(False)
         callback(value)
         if self.menu_pending and not self.busy:
@@ -121,8 +186,10 @@ class KitchenFrame(ttk.Frame):
     def _set_busy(self, busy):
         self.busy = busy
         state = "disabled" if busy else "normal"
-        for btn in (self.reload_btn, self.logout_btn, *self.action_buttons.values(), *self.menu_buttons.values()):
+        for btn in (self.reload_btn, self.logout_btn, *self.action_buttons.values()):
             btn.config(state=state)
+        if self.menu_panel is not None:
+            self.menu_panel.set_busy(busy)
 
     def _show_status(self, text, color="gray"):
         self.status.config(text=text, foreground=theme.message_color(color))
@@ -153,27 +220,66 @@ class KitchenFrame(ttk.Frame):
             return
         if not quiet:
             self._show_status("Загрузка заказов...")
-        self._run(self.db.load_kitchen_orders, lambda orders: self._orders_loaded(orders, done_text, quiet),
-                  self._handle_error)
+        self._run(lambda: self.db.load_station_orders(self.station),
+                  lambda orders: self._orders_loaded(orders, done_text, quiet),
+                  lambda error: self._handle_error(error, quiet=quiet))
 
     def _orders_loaded(self, orders, done_text, quiet):
         self._schedule_refresh()
         self.orders = {order["id"]: order for order in orders}
-        if orders != self.shown_orders:
-            self._render_orders(orders)
+        self.order_list = orders
+        new_ids = self._new_order_ids(orders)
+        self._render_orders()
+        if new_ids:
+            play_alert(self)
         if done_text:
             self._show_status(done_text, "green")
-        elif not quiet:
+        elif new_ids:
+            numbers = ", ".join(f"№ {order_id}" for order_id in new_ids)
+            self._show_status(("Новый заказ " if len(new_ids) == 1 else "Новые заказы: ") + numbers, "green")
+        elif not quiet or self.auto_error:
             self._show_status(f"Активных заказов: {len(orders)}" if orders else "Активных заказов нет.")
+        self.auto_error = False
 
-    def _render_orders(self, orders):
-        self.shown_orders = orders
-        self.orders_area.clear()
+    def _new_order_ids(self, orders):
+        """ID заказов, которых не было ни в одной прежней успешной загрузке этого экрана.
+
+        Сравниваются стабильные ID заказов; смена статуса существующего заказа
+        новым заказом не считается. Первая успешная загрузка только запоминает
+        текущие заказы — без сигнала для каждого.
+        """
+        new_ids = self.seen_orders.add_new(order["id"] for order in orders)
+        if not self.baseline_loaded:
+            self.baseline_loaded = True
+            return []
+        return new_ids
+
+    def _schedule_search(self):
+        if self.search_job is None:
+            self.search_job = self.after_idle(self._run_search)
+
+    def _run_search(self):
+        self.search_job = None
+        self._render_orders()
+
+    def visible_orders(self):
+        """Заказы, где есть позиция с подходящим кодом или названием (локально)."""
+        query = self.search_var.get()
+        return [order for order in self.order_list if search(order["items"], query, name_key="item_name")]
+
+    def _render_orders(self):
+        orders = self.visible_orders()
+        state = (orders, self.search_var.get().strip())
+        if state == self.shown_orders:
+            return  # ничего не изменилось — не перерисовывать (автообновление)
+        self.shown_orders = state
+        self.orders_area.clear(keep_position=True)
         self.action_buttons.clear()
         self.badges.clear()
         inner = self.orders_area.inner
         if not orders:
-            ttk.Label(inner, text="Активных заказов нет", style="H2.TLabel", foreground=theme.MUTED).pack(pady=40)
+            text = "Ничего не найдено" if self.order_list else "Активных заказов нет"
+            ttk.Label(inner, text=text, style="H2.TLabel", foreground=theme.MUTED).pack(pady=40)
             return
         for col in range(CARD_COLUMNS):
             inner.columnconfigure(col, weight=1, uniform="cards")
@@ -198,8 +304,12 @@ class KitchenFrame(ttk.Frame):
         for row, item in enumerate(order["items"]):
             ttk.Label(items, text=f"{item['quantity']} ×", style="CardBold.TLabel").grid(
                 row=row, column=0, sticky="ne", padx=(0, 8), pady=2)
-            ttk.Label(items, text=item["item_name"], style="Card.TLabel", wraplength=220).grid(
+            ttk.Label(items, text=item["item_name"], style="Card.TLabel", wraplength=180).grid(
                 row=row, column=1, sticky="w", pady=2)
+            if item.get("code"):
+                ttk.Label(items, text=str(item["code"]), style="CardMuted.TLabel").grid(
+                    row=row, column=2, sticky="ne", padx=(8, 0), pady=2)
+        items.columnconfigure(1, weight=1)
 
         next_status = self.transitions.get(order["status"])
         if next_status in ACTION:
@@ -220,7 +330,7 @@ class KitchenFrame(ttk.Frame):
         if next_status is None:
             return
         self._show_status("Сохранение статуса...")
-        self._run(lambda: self.db.set_order_status(order_id, next_status),
+        self._run(lambda: self.db.set_station_status(order_id, self.station, next_status),
                   lambda _r: self.reload_orders(done_text=(
                       f"Заказ № {order_id}: статус «{ORDER_STATUSES[next_status]}».")),
                   self._handle_error)
@@ -228,83 +338,29 @@ class KitchenFrame(ttk.Frame):
     # ---------- Меню (наличие блюд) ----------
 
     def reload_menu(self, done_text=None):
+        if self.menu_panel is None:  # у бара нет вкладки меню (и нет прав на kitchen_menu)
+            self.reload_orders(done_text=done_text)
+            return
         if self.busy:
             self.menu_pending = True
             return
         self._show_status("Загрузка меню...")
         self._run(self.db.load_kitchen_menu, lambda items: self._menu_loaded(items, done_text), self._handle_error)
 
+    @property
+    def menu_buttons(self):
+        """id блюда -> кнопка наличия на вкладке «Меню» (у бара вкладки нет)."""
+        return self.menu_panel.buttons if self.menu_panel is not None else {}
+
     def _menu_loaded(self, items, done_text):
         self.menu_loaded = True
         self.menu = {item["id"]: item for item in items}
-        self._render_menu()
+        self.menu_panel.set_items(items)
         off = sum(1 for item in items if not item["is_available"])
-        self.menu_counts.config(text=f"В продаже: {len(items) - off}  ·  Нет в наличии: {off}")
         if done_text:
             self._show_status(done_text, "green")
         else:
             self._show_status(f"Блюд: {len(items)}, нет в наличии: {off}")
-
-    def _menu_column_count(self):
-        width = self.menu_area.canvas.winfo_width()
-        return max(1, width // MENU_CARD_WIDTH) if width > 1 else CARD_COLUMNS
-
-    def _on_menu_resize(self, _event):
-        if self.menu_loaded and self._menu_column_count() != self.menu_columns:
-            self._render_menu()
-
-    def _render_menu(self):
-        """Карточки блюд по категориям с учётом поиска (без запроса к серверу)."""
-        self.menu_area.clear()
-        self.menu_buttons.clear()
-        self.menu_columns = columns = self._menu_column_count()
-        inner = self.menu_area.inner
-        query = self.search_var.get().strip().casefold()
-        items = [item for item in self.menu.values() if query in item["name"].casefold()]
-        if not items:
-            text = "Ничего не найдено" if query else "Меню пусто"
-            ttk.Label(inner, text=text, style="H2.TLabel", foreground=theme.MUTED).pack(pady=40)
-            return
-
-        by_category = {}
-        for item in sorted(items, key=lambda i: (i["category"], i["name"])):
-            by_category.setdefault(item["category"], []).append(item)
-        for category, dishes in by_category.items():
-            ttk.Label(inner, text=f"{category}  ({len(dishes)})", style="H2.TLabel").pack(
-                anchor="w", padx=6, pady=(14, 6))
-            grid = tk.Frame(inner, bg=theme.BG)
-            grid.pack(fill="x")
-            for col in range(columns):
-                grid.columnconfigure(col, weight=1, uniform="dishes")
-            for index, item in enumerate(dishes):
-                self._menu_card(grid, item).grid(row=index // columns, column=index % columns,
-                                                 sticky="nsew", padx=6, pady=6)
-
-    def _menu_card(self, master, item):
-        """Карточка блюда: цветная полоса статуса, название, бейдж и крупная кнопка."""
-        available = item["is_available"]
-        color = theme.SUCCESS if available else theme.DANGER
-        box = tk.Frame(master, bg=theme.SURFACE, highlightbackground=color if not available else theme.BORDER,
-                       highlightthickness=1)
-        tk.Frame(box, bg=color, width=6).pack(side="left", fill="y")
-        body = ttk.Frame(box, style="Card.TFrame", padding=(12, 10))
-        body.pack(side="left", fill="both", expand=True)
-
-        ttk.Label(body, text=item["name"], style="CardBold.TLabel" if available else "CardMuted.TLabel",
-                  wraplength=MENU_CARD_WIDTH - 60).pack(anchor="w")
-        ttk.Label(body, text="В продаже" if available else "Нет в наличии",
-                  style="Badge.on.TLabel" if available else "Badge.off.TLabel").pack(anchor="w", pady=(6, 10))
-        if available:
-            btn = ttk.Button(body, text="Нет в наличии", style="Big.Danger.TButton",
-                             command=lambda: self.toggle_available(item["id"]))
-        else:
-            btn = ttk.Button(body, text="Вернуть в продажу", style="Big.Success.TButton",
-                             command=lambda: self.toggle_available(item["id"]))
-        btn.pack(fill="x", side="bottom")
-        if self.busy:
-            btn.config(state="disabled")
-        self.menu_buttons[item["id"]] = btn
-        return box
 
     def toggle_available(self, item_id):
         if self.busy:
@@ -314,8 +370,8 @@ class KitchenFrame(ttk.Frame):
             return
         available = not item["is_available"]
         if not available and not messagebox.askyesno(
-                "Нет в наличии", f"Отметить «{item['name']}» как «Нет в наличии»?\n"
-                                 "Кассиры не смогут добавить его в заказ.", parent=self):
+                "Снять с продажи", f"Снять «{item['name']}» с продажи?\n"
+                                   "Кассиры не смогут добавить его в заказ.", parent=self):
             return
         self._show_status("Сохранение...")
         text = f"«{item['name']}»: " + ("в продаже." if available else "нет в наличии.")
@@ -324,8 +380,14 @@ class KitchenFrame(ttk.Frame):
 
     # ---------- Ошибки и выход ----------
 
-    def _handle_error(self, error):
+    def _handle_error(self, error, quiet=False):
         self._schedule_refresh()
+        if quiet and error.code != "auth":
+            # Ошибка фонового автообновления: без окон, следующая попытка — по таймеру
+            log.warning("Автообновление заказов (%s) не удалось: %s", self.station, error)
+            self.auto_error = True
+            self._show_status(f"{error} Повторим автоматически через {AUTO_REFRESH_MS // 1000} с.", "orange")
+            return
         self._show_status(str(error), "red")
         if error.code == "auth":
             messagebox.showerror("Доступ", str(error), parent=self)
@@ -347,7 +409,13 @@ class KitchenFrame(ttk.Frame):
         self.on_logout()
 
     def destroy(self):
-        if self.refresh_job is not None:
-            self.after_cancel(self.refresh_job)
-            self.refresh_job = None
+        self.closed = True
+        for job in (self.refresh_job, self.search_job):
+            if job is not None:
+                self.after_cancel(job)
+        self.refresh_job = self.search_job = None
         super().destroy()
+
+
+class BarFrame(KitchenFrame):
+    """Экран бара: тот же экран станции для роли bar (заказы с напитками, без меню)."""

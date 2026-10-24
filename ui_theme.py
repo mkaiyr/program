@@ -169,7 +169,9 @@ class ScrollFrame(ttk.Frame):
             step = -event.delta // 120
         self.canvas.yview_scroll(step, "units")
 
-    def clear(self):
+    def clear(self, keep_position=False):
+        """Удаляет содержимое; keep_position=True — не прокручивать в начало."""
         for child in self.inner.winfo_children():
             child.destroy()
-        self.canvas.yview_moveto(0)
+        if not keep_position:
+            self.canvas.yview_moveto(0)

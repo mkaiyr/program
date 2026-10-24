@@ -60,7 +60,8 @@ class TransitionsTest(unittest.TestCase):
     def test_roles(self):
         self.assertEqual(dbm.ROLE_TRANSITIONS["kitchen"], {"accepted": "preparing", "preparing": "ready"})
         self.assertEqual(dbm.ROLE_TRANSITIONS["cashier"], {"ready": "completed"})
-        self.assertEqual(dbm.ROLE_TRANSITIONS["admin"], dbm.NEXT_STATUS)
+        # «Готовится»/«Готов» вычисляются из станций (08); админ выдаёт, а готовность — только явно
+        self.assertEqual(dbm.ROLE_TRANSITIONS["admin"], {"ready": "completed"})
         for role, transitions in dbm.ROLE_TRANSITIONS.items():
             for old, new in transitions.items():
                 self.assertEqual(dbm.NEXT_STATUS[old], new, f"{role}: {old}->{new} нет в последовательности")
@@ -152,15 +153,18 @@ class FakeKitchenDB:
     def __init__(self):
         self.orders = {1: "accepted", 2: "preparing"}
         self.calls = []
+        self.stations = []  # какой станции касались вызовы
         self.fail = None
 
-    def load_kitchen_orders(self):
+    def load_station_orders(self, station):
+        self.stations.append(station)
         return [{"id": oid, "time": "09:0" + str(oid), "status": st,
                  "items": [{"item_name": "Суп", "quantity": oid}]}
                 for oid, st in self.orders.items() if st in ("accepted", "preparing")]
 
-    def set_order_status(self, order_id, status):
+    def set_station_status(self, order_id, station, status):
         self.calls.append((order_id, status))
+        self.stations.append(station)
         if self.fail:
             error, self.fail = self.fail, None
             raise error
@@ -245,7 +249,7 @@ class UiTest(unittest.TestCase):
         db = mock.Mock(load_orders=mock.Mock(return_value=orders))
         expected = {
             "cashier": {"1": None, "2": None, "3": "Выдан", "4": None},
-            "admin": {"1": "Готовится", "2": "Готов", "3": "Выдан", "4": None},
+            "admin": {"1": None, "2": None, "3": "Выдан", "4": None},
         }
         for role, by_order in expected.items():
             window = ui_orders.OrdersWindow(self.root, db, role=role, on_auth_error=mock.Mock())

@@ -4,3 +4,12 @@ config.ini
 __pycache__/
 *.pyc
 .DS_Store
+
+# Локальные настройки и окружения — не публиковать
+.env
+.env.*
+.venv/
+venv/
+*.log
+# Локальная настройка MCP: содержит project_ref проекта Supabase
+.mcp.json

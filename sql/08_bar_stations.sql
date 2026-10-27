@@ -641,6 +641,9 @@ grant execute on function public.admin_force_order_ready(bigint) to authenticate
 -- Ошибки: как в 07 + INVALID_STATION
 
 drop function if exists public.admin_add_menu_item(text, text, numeric, integer);
+-- Версия из 02: удалена в 07, но появляется снова, если 02 запустили повторно после 07/08
+-- (до появления предусловий в 02). Без неё вызов с тремя параметрами неоднозначен.
+drop function if exists public.admin_add_menu_item(text, text, numeric);
 
 create or replace function public.admin_add_menu_item(p_name text, p_category text, p_price numeric,
                                                       p_code integer default null,
@@ -745,6 +748,78 @@ $$;
 
 revoke all on function public.admin_update_menu_item(bigint, text, text, numeric, text) from public, anon;
 grant execute on function public.admin_update_menu_item(bigint, text, text, numeric, text) to authenticated;
+
+-- ---------- Восстановление определений из 07 ----------
+-- Тексты без изменений из 07_menu_codes.sql (сигнатуры те же, новых перегрузок нет,
+-- данные не меняются). Нужны, чтобы повторный запуск 08 исправлял последствия
+-- случайного повторного запуска старых 02 или 06: 07 после 08 не запускается.
+
+create or replace function public.admin_set_menu_item_available(p_id bigint, p_available boolean)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_row public.menu_items;
+begin
+  if auth.uid() is null then
+    raise exception using errcode = '28000', message = 'NOT_AUTHENTICATED';
+  end if;
+  if not public.is_active_admin() then
+    raise exception using errcode = '42501', message = 'ADMIN_REQUIRED';
+  end if;
+  if p_available is null then
+    raise exception using errcode = '22023', message = 'INVALID_REQUEST';
+  end if;
+
+  update public.menu_items set is_available = p_available
+   where id = p_id
+  returning * into v_row;
+  if not found then
+    raise exception using errcode = 'P0002', message = 'NOT_FOUND';
+  end if;
+
+  return jsonb_build_object('id', v_row.id, 'code', v_row.code, 'name', v_row.name, 'category', v_row.category,
+                            'price', v_row.price, 'is_available', v_row.is_available);
+end;
+$$;
+
+revoke all on function public.admin_set_menu_item_available(bigint, boolean) from public, anon;
+grant execute on function public.admin_set_menu_item_available(bigint, boolean) to authenticated;
+
+-- ---------- Меню кухни: добавлен код (по-прежнему без цен) ----------
+-- Сигнатура та же, что в 06.
+
+create or replace function public.kitchen_menu()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_result jsonb;
+begin
+  if auth.uid() is null then
+    raise exception using errcode = '28000', message = 'NOT_AUTHENTICATED';
+  end if;
+  if not public.is_active_kitchen() then
+    raise exception using errcode = '42501', message = 'NOT_ALLOWED';
+  end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', m.id, 'code', m.code, 'name', m.name, 'category', m.category, 'is_available', m.is_available)
+         order by m.category, m.name), '[]'::jsonb)
+    into v_result
+    from public.menu_items m;
+
+  return v_result;
+end;
+$$;
+
+revoke all on function public.kitchen_menu() from public, anon;
+grant execute on function public.kitchen_menu() to authenticated;
 
 notify pgrst, 'reload schema';
 

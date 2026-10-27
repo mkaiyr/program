@@ -1,7 +1,9 @@
 -- =====================================================================
 -- Этап 7. Кухня: статус «Готовится» и роль kitchen
 -- Выполнять целиком в Supabase: SQL Editor -> New query -> Run
--- Требует выполненных 01–04. Повторный запуск безопасен.
+-- Требует выполненных 01–04. Повторный запуск безопасен только до 08_bar_stations.sql:
+-- после неё (или если ограничение ролей допускает другие роли) миграция останавливается
+-- до изменений. См. docs/DATABASE.md.
 -- Существующие заказы и их статусы не меняются (все старые значения допустимы).
 --
 -- Статусы: accepted (Принят) -> preparing (Готовится) -> ready (Готов) -> completed (Выдан)
@@ -19,6 +21,88 @@
 -- =====================================================================
 
 begin;
+
+-- ---------- Предусловие: база ещё без 08_bar_stations.sql ----------
+-- 05 заменяет ограничение ролей на {cashier, admin, kitchen} и перезаписывает
+-- employee_login_email, kitchen_orders и set_order_status версиями без бара и станций.
+-- После 08 это удалило бы роль bar и вернуло старое управление общим статусом.
+-- Каждый признак проверяется отдельно: остановка и при частично применённой более
+-- новой миграции или объектах, созданных вручную. Строки «if … then v_found := array_append(…)»
+-- разбирает tests/test_migration_guards.py — формат менять вместе с тестом.
+
+do $$
+declare
+  v_found text[] := '{}';
+begin
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.menu_items') and attname = 'station' and not attisdropped)
+  then v_found := array_append(v_found, 'menu_items.station (08)'); end if;
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.order_items') and attname = 'station' and not attisdropped)
+  then v_found := array_append(v_found, 'order_items.station (08)'); end if;
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.order_items') and attname = 'item_code' and not attisdropped)
+  then v_found := array_append(v_found, 'order_items.item_code (08)'); end if;
+  if to_regclass('public.order_stations') is not null
+  then v_found := array_append(v_found, 'order_stations (08)'); end if;
+  if exists (select 1 from pg_constraint where conrelid = to_regclass('public.profiles') and contype = 'c' and pg_get_constraintdef(oid) ~ '''bar''::text')
+  then v_found := array_append(v_found, 'profiles.role: bar (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'is_active_bar')
+  then v_found := array_append(v_found, 'is_active_bar() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'bar_orders')
+  then v_found := array_append(v_found, 'bar_orders() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'set_station_status')
+  then v_found := array_append(v_found, 'set_station_status() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_force_order_ready')
+  then v_found := array_append(v_found, 'admin_force_order_ready() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = '_station_orders')
+  then v_found := array_append(v_found, '_station_orders() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = '_refresh_order_status')
+  then v_found := array_append(v_found, '_refresh_order_status() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_add_menu_item' and pronargs > 4)
+  then v_found := array_append(v_found, 'admin_add_menu_item с p_station (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_update_menu_item' and pronargs > 4)
+  then v_found := array_append(v_found, 'admin_update_menu_item с p_station (08)'); end if;
+
+  if cardinality(v_found) > 0 then
+    raise exception 'ОСТАНОВЛЕНО: 05_kitchen_status.sql нельзя запускать после 08_bar_stations.sql, найдено: %',
+      array_to_string(v_found, ', ');
+  end if;
+end;
+$$;
+
+-- ---------- Предусловие: ограничения ролей ----------
+-- Ниже удаляются ВСЕ CHECK на profiles.role и создаётся одно на {cashier, admin, kitchen}.
+-- Это безопасно, только если каждое из них имеет вид «role = ANY (ARRAY[...])» и не
+-- допускает других ролей (bar из 08, роли, добавленные вручную), а в данных таких ролей нет.
+-- Иначе остановка: удаление сузило бы набор ролей. Регулярное выражение — то же, что в 08.
+
+do $$
+declare
+  v_def   text;
+  v_extra text;
+begin
+  for v_def in select pg_get_constraintdef(oid) from pg_constraint
+                where conrelid = 'public.profiles'::regclass
+                  and contype = 'c'
+                  and pg_get_constraintdef(oid) ~ '\mrole\M'
+  loop
+    if v_def !~ '^CHECK \(\(role = ANY \(ARRAY\[''[a-z_]+''::text(, ''[a-z_]+''::text)*\]\)\)\)$' then
+      raise exception 'ОСТАНОВЛЕНО: ограничение на profiles.role имеет неожиданный вид: %', v_def;
+    end if;
+    select string_agg(m[1], ', ') into v_extra
+      from regexp_matches(v_def, '''([a-z_]+)''::text', 'g') as m
+     where m[1] not in ('cashier', 'admin', 'kitchen');
+    if v_extra is not null then
+      raise exception 'ОСТАНОВЛЕНО: ограничение на profiles.role допускает роли вне {cashier, admin, kitchen}: %', v_extra;
+    end if;
+  end loop;
+
+  select string_agg(distinct role, ', ') into v_extra
+    from public.profiles
+   where role not in ('cashier', 'admin', 'kitchen');
+  if v_extra is not null then
+    raise exception 'ОСТАНОВЛЕНО: в profiles есть роли вне {cashier, admin, kitchen}: %', v_extra;
+  end if;
+end;
+$$;
 
 -- ---------- Роль kitchen в profiles ----------
 -- Ограничение роли из 01 создано без имени, поэтому ищем его по определению.

@@ -1,13 +1,75 @@
 -- =====================================================================
 -- Этап 4. Управление меню администратором
 -- Выполнять целиком в Supabase: SQL Editor -> New query -> Run
--- Требует выполненного 01_schema.sql. Повторный запуск безопасен.
+-- Требует выполненного 01_schema.sql. Одна транзакция: при ошибке не меняется ничего.
+-- Повторный запуск безопасен только до 07_menu_codes.sql: после 07/08 миграция
+-- останавливается до изменений. См. docs/DATABASE.md.
 --
 -- Принцип тот же, что в этапе 1: прямой записи в таблицы у клиента нет,
 -- изменения меню — только через функции ниже, которые сами проверяют роль.
 -- Позиции не удаляются, а снимаются с продажи (is_available = false).
 -- Заказы не затрагиваются: order_items хранит снимок названия и цены.
 -- =====================================================================
+
+begin;
+
+-- ---------- Предусловие: база ещё без 07_menu_codes.sql и 08_bar_stations.sql ----------
+-- 02 создаёт admin_add_menu_item(text, text, numeric) и admin_update_menu_item с 4 параметрами.
+-- После 07/08 это вторые версии рядом с новыми: PostgREST не сможет выбрать функцию
+-- (добавление и изменение позиций перестанут работать), а ответы потеряют code.
+-- Каждый признак проверяется отдельно: остановка и при частично применённой более
+-- новой миграции или объектах, созданных вручную. Строки «if … then v_found := array_append(…)»
+-- разбирает tests/test_migration_guards.py — формат менять вместе с тестом.
+
+do $$
+declare
+  v_found text[] := '{}';
+begin
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.menu_items') and attname = 'code' and not attisdropped)
+  then v_found := array_append(v_found, 'menu_items.code (07)'); end if;
+  if to_regclass('public.menu_item_code_seq') is not null
+  then v_found := array_append(v_found, 'menu_item_code_seq (07)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = '_next_menu_item_code')
+  then v_found := array_append(v_found, '_next_menu_item_code() (07)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = '_menu_item_code_immutable')
+  then v_found := array_append(v_found, '_menu_item_code_immutable() (07)'); end if;
+  if exists (select 1 from pg_trigger where tgrelid = to_regclass('public.menu_items') and tgname = 'menu_items_code_immutable')
+  then v_found := array_append(v_found, 'триггер menu_items_code_immutable (07)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_add_menu_item' and pronargs > 3)
+  then v_found := array_append(v_found, 'admin_add_menu_item с p_code (07)'); end if;
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.menu_items') and attname = 'station' and not attisdropped)
+  then v_found := array_append(v_found, 'menu_items.station (08)'); end if;
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.order_items') and attname = 'station' and not attisdropped)
+  then v_found := array_append(v_found, 'order_items.station (08)'); end if;
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.order_items') and attname = 'item_code' and not attisdropped)
+  then v_found := array_append(v_found, 'order_items.item_code (08)'); end if;
+  if to_regclass('public.order_stations') is not null
+  then v_found := array_append(v_found, 'order_stations (08)'); end if;
+  if exists (select 1 from pg_constraint where conrelid = to_regclass('public.profiles') and contype = 'c' and pg_get_constraintdef(oid) ~ '''bar''::text')
+  then v_found := array_append(v_found, 'profiles.role: bar (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'is_active_bar')
+  then v_found := array_append(v_found, 'is_active_bar() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'bar_orders')
+  then v_found := array_append(v_found, 'bar_orders() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'set_station_status')
+  then v_found := array_append(v_found, 'set_station_status() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_force_order_ready')
+  then v_found := array_append(v_found, 'admin_force_order_ready() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = '_station_orders')
+  then v_found := array_append(v_found, '_station_orders() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = '_refresh_order_status')
+  then v_found := array_append(v_found, '_refresh_order_status() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_add_menu_item' and pronargs > 4)
+  then v_found := array_append(v_found, 'admin_add_menu_item с p_station (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_update_menu_item' and pronargs > 4)
+  then v_found := array_append(v_found, 'admin_update_menu_item с p_station (08)'); end if;
+
+  if cardinality(v_found) > 0 then
+    raise exception 'ОСТАНОВЛЕНО: 02_admin_menu.sql нельзя запускать после 07/08, найдено: %',
+      array_to_string(v_found, ', ');
+  end if;
+end;
+$$;
 
 -- ---------- Проверка роли администратора ----------
 
@@ -185,6 +247,8 @@ $$;
 
 revoke all on function public.admin_set_menu_item_available(bigint, boolean) from public, anon;
 grant execute on function public.admin_set_menu_item_available(bigint, boolean) to authenticated;
+
+commit;
 
 -- ---------- Назначение администратора (выполнить отдельно, подставив email) ----------
 -- Пользователь уже есть в profiles:

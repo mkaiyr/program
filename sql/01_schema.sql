@@ -1,7 +1,57 @@
 -- =====================================================================
 -- Этап 1. Схема, ограничения, RLS и серверная функция оформления заказа
 -- Выполнять целиком в Supabase: SQL Editor -> New query -> Run
+-- Одна транзакция: при ошибке не меняется ничего.
+-- Повторный запуск допустим только до 08_bar_stations.sql: после неё миграция
+-- останавливается до изменений (иначе create_order вернётся к версии без станций
+-- и оформление заказа перестанет работать). См. docs/DATABASE.md.
+-- Данные не добавляются: тестовое меню — отдельный файл sql/seed/demo_menu.sql.
 -- =====================================================================
+
+begin;
+
+-- ---------- Предусловие: база ещё без 08_bar_stations.sql ----------
+-- Каждый признак 08 проверяется отдельно: остановка и при частично применённой 08
+-- или объектах, созданных вручную. Строки «if … then v_found := array_append(…)»
+-- разбирает tests/test_migration_guards.py — формат менять вместе с тестом.
+
+do $$
+declare
+  v_found text[] := '{}';
+begin
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.menu_items') and attname = 'station' and not attisdropped)
+  then v_found := array_append(v_found, 'menu_items.station (08)'); end if;
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.order_items') and attname = 'station' and not attisdropped)
+  then v_found := array_append(v_found, 'order_items.station (08)'); end if;
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.order_items') and attname = 'item_code' and not attisdropped)
+  then v_found := array_append(v_found, 'order_items.item_code (08)'); end if;
+  if to_regclass('public.order_stations') is not null
+  then v_found := array_append(v_found, 'order_stations (08)'); end if;
+  if exists (select 1 from pg_constraint where conrelid = to_regclass('public.profiles') and contype = 'c' and pg_get_constraintdef(oid) ~ '''bar''::text')
+  then v_found := array_append(v_found, 'profiles.role: bar (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'is_active_bar')
+  then v_found := array_append(v_found, 'is_active_bar() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'bar_orders')
+  then v_found := array_append(v_found, 'bar_orders() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'set_station_status')
+  then v_found := array_append(v_found, 'set_station_status() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_force_order_ready')
+  then v_found := array_append(v_found, 'admin_force_order_ready() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = '_station_orders')
+  then v_found := array_append(v_found, '_station_orders() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = '_refresh_order_status')
+  then v_found := array_append(v_found, '_refresh_order_status() (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_add_menu_item' and pronargs > 4)
+  then v_found := array_append(v_found, 'admin_add_menu_item с p_station (08)'); end if;
+  if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_update_menu_item' and pronargs > 4)
+  then v_found := array_append(v_found, 'admin_update_menu_item с p_station (08)'); end if;
+
+  if cardinality(v_found) > 0 then
+    raise exception 'ОСТАНОВЛЕНО: 01_schema.sql нельзя запускать после 08_bar_stations.sql, найдено: %',
+      array_to_string(v_found, ', ');
+  end if;
+end;
+$$;
 
 -- ---------- Таблицы ----------
 
@@ -223,15 +273,9 @@ $$;
 revoke all on function public.create_order(uuid, jsonb) from public, anon;
 grant execute on function public.create_order(uuid, jsonb) to authenticated;
 
--- ---------- Тестовое меню ----------
+-- Тестовое меню вынесено в sql/seed/demo_menu.sql: миграция данные меню не меняет.
 
-insert into public.menu_items (name, category, price) values
-  ('Американо',        'Напитки', 800.00),
-  ('Капучино',         'Напитки', 1100.00),
-  ('Чай чёрный',       'Напитки', 500.00),
-  ('Круассан',         'Выпечка', 700.00),
-  ('Сэндвич с курицей','Еда',     1500.00)
-on conflict (name) do nothing;
+commit;
 
 -- ---------- Профиль кассира (выполнить отдельно после создания пользователя) ----------
 -- insert into public.profiles (id, full_name, role)

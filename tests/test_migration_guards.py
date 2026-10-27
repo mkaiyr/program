@@ -329,10 +329,17 @@ class RecoveryIn08Test(unittest.TestCase):
             self.body(self.S08, name)
 
     def test_restored_definitions_match_07(self):
+        """admin_set_menu_item_available — текст 07 без изменений; kitchen_menu — текст 07 и фильтр
+        по станции кухни (единственное отличие). Совпадение kitchen_menu в 08 и 09 проверяет
+        test_station_menu_migration.py."""
+        self.assertEqual(self.body(self.S08, "admin_set_menu_item_available"),
+                         self.body(self.S07, "admin_set_menu_item_available"))
+        kitchen_filter = "\n   where m.station = 'kitchen';"
+        self.assertEqual(self.body(self.S08, "kitchen_menu").replace(kitchen_filter, ";"),
+                         self.body(self.S07, "kitchen_menu"))
+        self.assertIn(kitchen_filter, self.body(self.S08, "kitchen_menu"))
         for name in ("admin_set_menu_item_available", "kitchen_menu"):
-            with self.subTest(name=name):
-                self.assertEqual(self.body(self.S08, name), self.body(self.S07, name))
-                self.assertIn("'code'", self.body(self.S08, name))
+            self.assertIn("'code'", self.body(self.S08, name))
 
     def test_restored_functions_rights(self):
         for sig in ("admin_set_menu_item_available(bigint, boolean)", "kitchen_menu()"):

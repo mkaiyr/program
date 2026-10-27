@@ -16,12 +16,17 @@ begin;
 do $$
 begin
   assert (select count(*) = count(code) from public.menu_items), 'FAIL: есть позиции без кода';
-  assert (select count(*) = count(distinct code) from public.menu_items), 'FAIL: коды повторяются';
+  -- После 09 код отклонённой позиции может повторно использовать действующая: уникальны коды
+  -- неотклонённых позиций. to_jsonb: до 09 столбца rejected_at нет — значение NULL (не отклонена).
+  assert (select count(*) = count(distinct code) from public.menu_items m
+           where (to_jsonb(m) ->> 'rejected_at') is null), 'FAIL: коды действующих позиций повторяются';
   assert (select is_nullable = 'NO' and data_type = 'integer' from information_schema.columns
            where table_schema = 'public' and table_name = 'menu_items' and column_name = 'code'),
     'FAIL: code должен быть integer NOT NULL';
-  assert exists (select 1 from pg_constraint where conname = 'menu_items_code_key' and contype = 'u'),
-    'FAIL: нет UNIQUE на code';
+  -- До 09 — индекс ограничения UNIQUE (07), после 09 — частичный уникальный индекс с тем же именем
+  assert exists (select 1 from pg_index i where i.indexrelid = to_regclass('public.menu_items_code_key')
+                  and i.indisunique and i.indrelid = 'public.menu_items'::regclass),
+    'FAIL: нет уникального индекса menu_items_code_key на code';
 end;
 $$;
 

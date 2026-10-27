@@ -750,9 +750,11 @@ revoke all on function public.admin_update_menu_item(bigint, text, text, numeric
 grant execute on function public.admin_update_menu_item(bigint, text, text, numeric, text) to authenticated;
 
 -- ---------- Восстановление определений из 07 ----------
--- Тексты без изменений из 07_menu_codes.sql (сигнатуры те же, новых перегрузок нет,
--- данные не меняются). Нужны, чтобы повторный запуск 08 исправлял последствия
--- случайного повторного запуска старых 02 или 06: 07 после 08 не запускается.
+-- Сигнатуры те же, новых перегрузок нет, данные не меняются. Нужны, чтобы повторный запуск 08
+-- исправлял последствия случайного повторного запуска старых 02 или 06: 07 после 08 не запускается.
+-- admin_set_menu_item_available — текст из 07 без изменений. kitchen_menu — текст из 07 и фильтр
+-- по станции кухни (до этого кухня видела и позиции бара); тот же текст — в 09_station_menu.sql,
+-- чтобы повторный запуск 08 или 09 не возвращал прежнюю ошибку (tests/test_station_menu_migration.py).
 
 create or replace function public.admin_set_menu_item_available(p_id bigint, p_available boolean)
 returns jsonb
@@ -788,7 +790,7 @@ $$;
 revoke all on function public.admin_set_menu_item_available(bigint, boolean) from public, anon;
 grant execute on function public.admin_set_menu_item_available(bigint, boolean) to authenticated;
 
--- ---------- Меню кухни: добавлен код (по-прежнему без цен) ----------
+-- ---------- Меню кухни: код, без цен, только позиции кухни ----------
 -- Сигнатура та же, что в 06.
 
 create or replace function public.kitchen_menu()
@@ -812,7 +814,8 @@ begin
            'id', m.id, 'code', m.code, 'name', m.name, 'category', m.category, 'is_available', m.is_available)
          order by m.category, m.name), '[]'::jsonb)
     into v_result
-    from public.menu_items m;
+    from public.menu_items m
+   where m.station = 'kitchen';
 
   return v_result;
 end;

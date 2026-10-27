@@ -18,6 +18,7 @@ class LoginFrame(ttk.Frame):
         super().__init__(master)
         self.db = db
         self.on_success = on_success
+        self.closed = False  # экран уничтожен: ответ на вход игнорируется
 
         # Блок входа одной колонкой фиксированной ширины, всегда по центру окна
         box = ttk.Frame(self, padding=24)
@@ -87,18 +88,37 @@ class LoginFrame(ttk.Frame):
         code, password = self.code.get(), self.password.get()
         self.button.config(state="disabled")
         self.status.config(text="Подключение...", foreground=theme.MUTED)
-        # Сетевой запрос в отдельном потоке, чтобы окно не зависало
-        threading.Thread(target=self._worker, args=(code, password), daemon=True).start()
+        # Результат передаётся через корневое окно, как на остальных экранах: after на
+        # уничтоженном экране исчез бы, а после закрытия приложения вызов из потока падает
+        root = self._root()
 
-    def _worker(self, code, password):
+        def deliver(callback, value):
+            try:
+                root.after(0, self._finish, callback, value)
+            except (RuntimeError, tk.TclError):
+                pass  # приложение уже закрыто
+
+        # Сетевой запрос в отдельном потоке, чтобы окно не зависало
+        threading.Thread(target=self._worker, args=(code, password, deliver), daemon=True).start()
+
+    def _worker(self, code, password, deliver):
         try:
             profile = self.db.sign_in(code, password)
         except AppError as e:
-            self.after(0, self._fail, str(e))
+            deliver(self._fail, str(e))
         except Exception as e:  # непредвиденная ошибка не должна молча ронять поток
-            self.after(0, self._fail, f"Непредвиденная ошибка: {e}")
+            deliver(self._fail, f"Непредвиденная ошибка: {e}")
         else:
-            self.after(0, self.on_success, profile)
+            deliver(self.on_success, profile)
+
+    def _finish(self, callback, value):
+        if self.closed:
+            return  # экран входа закрыли, пока шёл вход
+        callback(value)
+
+    def destroy(self):
+        self.closed = True
+        super().destroy()
 
     def _fail(self, message):
         self.status.config(text=message, foreground=theme.DANGER)

@@ -41,7 +41,9 @@ class App(tk.Tk):
             self._show(OrderFrame(self, self.db, profile, on_logout=self.logout))
 
     def logout(self):
-        self.db.sign_out()
+        # Сессия на этом компьютере сбрасывается сразу; сервер уведомляется в фоновом потоке,
+        # чтобы окно не зависало, если он недоступен (таймаут — секунды)
+        self.db.sign_out(background=True)
         self.show_login()
 
 

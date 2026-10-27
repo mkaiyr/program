@@ -1,6 +1,7 @@
 """Работа с Supabase: подключение, вход сотрудника, меню и заказы."""
 
 import re
+import threading
 from datetime import datetime
 from decimal import Decimal
 
@@ -15,6 +16,7 @@ EMPLOYEE_CODE_RE = re.compile(r"[0-9]{4,6}")  # совпадает с profiles_e
 MENU_CODE_RE = re.compile(r"[0-9]{1,8}")      # совпадает с menu_items_code_check (1..99999999)
 BAD_LOGIN = "Неверный код сотрудника или пароль."
 NO_NETWORK = "Нет связи с сервером. Проверьте интернет."
+SIGN_OUT_WAIT = 15  # с: сколько новый вход ждёт отзыва прежней сессии на сервере (таймауты HTTP — 5 с)
 
 # Статусы заказа и допустимые переходы (совпадают с sql/05_kitchen_status.sql)
 ORDER_STATUSES = {"accepted": "Принят", "preparing": "Готовится", "ready": "Готов", "completed": "Выдан"}
@@ -133,6 +135,22 @@ def _check_station(station):
     return station
 
 
+def _check_items(items, keys=()):
+    """Позиции заказа из ответа сервера: список объектов с названием и количеством (и полями keys).
+
+    Экраны берут item_name и quantity без проверок, поэтому ответ другой формы —
+    «неожиданный ответ», а не KeyError при отрисовке.
+    """
+    if items is None:
+        return []
+    if not isinstance(items, list) or not all(
+            isinstance(item, dict) and isinstance(item.get("item_name"), str)
+            and type(item.get("quantity")) is int and all(key in item for key in keys)
+            for item in items):
+        raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+    return items
+
+
 def _api_error(e, default_text):
     """PostgrestAPIError -> AppError."""
     if e.code in ("PGRST301", "PGRST303") or "JWT" in (e.message or ""):
@@ -146,9 +164,17 @@ def _api_error(e, default_text):
 
 
 class Database:
+    _access_token = None   # токен текущей сессии (из событий Auth): отзыв при выходе без get_session()
+    _revoke_thread = None  # фоновый отзыв прежней сессии на сервере (выход без ожидания)
+
     def __init__(self, url, key):
         self.client = create_client(url, key)
         self.profile = None
+        self.client.auth.on_auth_state_change(self._on_auth_event)
+
+    def _on_auth_event(self, _event, session):
+        # SIGNED_IN, TOKEN_REFRESHED — новая сессия; SIGNED_OUT — None
+        self._access_token = session.access_token if session else None
 
     def _login_email(self, code):
         """Email учётной записи Supabase Auth по коду сотрудника (RPC employee_login_email)."""
@@ -173,6 +199,12 @@ class Database:
             raise AppError("Введите код сотрудника и пароль.")
         if not EMPLOYEE_CODE_RE.fullmatch(code):
             raise AppError("Код сотрудника — от 4 до 6 цифр.")
+
+        pending = self._revoke_thread
+        if pending is not None:
+            # Прежняя сессия ещё отзывается на сервере (выход того же сотрудника со scope=global
+            # отозвал бы и новую): вход продолжается после отзыва или по таймауту
+            pending.join(SIGN_OUT_WAIT)
 
         email = self._login_email(code)
         if email is None:  # неизвестный код или неактивный сотрудник — ответ одинаковый
@@ -340,7 +372,8 @@ class Database:
 
         orders = []
         for row in result.data:
-            items = sorted(row.get("order_items") or [], key=lambda i: i["id"])
+            items = sorted(_check_items(row.get("order_items"), ("id", "unit_price", "line_total")),
+                           key=lambda i: i["id"])
             orders.append({
                 "id": row["id"],
                 "created_at": to_local_time(row["created_at"]),
@@ -378,7 +411,7 @@ class Database:
             "id": row["id"],
             "time": to_local_time(row["created_at"], "%H:%M"),
             "status": row["status"],
-            "items": row.get("items") or [],
+            "items": _check_items(row.get("items")),
         } for row in result.data]
 
     def load_kitchen_menu(self):
@@ -443,7 +476,8 @@ class Database:
             raise AppError("Нет связи с сервером. Статус не подтверждён — обновите список.",
                            "network") from e
         data = result.data
-        if not isinstance(data, dict) or data.get("status") != "ready" or data.get("forced") is not True:
+        if (not isinstance(data, dict) or data.get("status") != "ready" or data.get("forced") is not True
+                or type(data.get("stations_forced")) is not int):  # число показывается в окне «Заказы»
             raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
         return data
 
@@ -465,9 +499,45 @@ class Database:
             raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
         return data
 
-    def sign_out(self):
+    def sign_out(self, background=False):
+        """Выход. Сессия на этом компьютере сбрасывается сразу, без ожидания сервера.
+
+        Сервер отзывает сессию, если доступен: при background=True — в фоновом потоке,
+        чтобы окно не зависало до таймаута. Следующий sign_in дождётся отзыва.
+        """
         self.profile = None
-        try:
-            self.client.auth.sign_out()
-        except (AuthError, httpx.HTTPError):
-            pass  # локальная сессия всё равно сбрасывается
+        auth = self.client.auth
+        if not background:
+            try:
+                auth.sign_out()
+            except (AuthError, httpx.HTTPError):
+                # supabase-py удаляет локальную сессию только после ответа сервера: без связи или
+                # при 5xx токен сотрудника остался бы в клиенте (и в заголовках запросов), а таймер
+                # продолжал бы его обновлять — удаляем сами.
+                self._drop_local_session()
+            return
+
+        # В фоне: сначала локально, затем отзыв сохранённого токена. client.auth.sign_out()
+        # в потоке не подходит: его удаление сессии после ответа сервера стёрло бы сессию
+        # сотрудника, который успел войти следующим.
+        token = self._access_token
+        self._drop_local_session()
+        if not token:
+            return
+
+        def revoke():
+            try:
+                auth.admin.sign_out(token)  # scope="global", как у client.auth.sign_out()
+            except (AuthError, httpx.HTTPError):
+                pass  # сервер недоступен или токен уже недействителен: локально сессии уже нет
+
+        # Не daemon: закрытие приложения сразу после выхода не обрывает отзыв (не дольше таймаута)
+        self._revoke_thread = threading.Thread(target=revoke)
+        self._revoke_thread.start()
+
+    def _drop_local_session(self):
+        """Сессия на этом компьютере — без запроса к серверу (supabase-py 2.33, внутренние методы
+        клиента): удаление сессии с остановкой таймера обновления и событие SIGNED_OUT, по которому
+        клиент возвращает заголовкам запросов публичный ключ. Проверяется tests/test_logout_safety.py."""
+        self.client.auth._remove_session()
+        self.client.auth._notify_all_subscribers("SIGNED_OUT", None)

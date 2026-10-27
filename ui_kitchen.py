@@ -179,6 +179,8 @@ class KitchenFrame(ttk.Frame):
             return  # экран закрыли, пока шёл запрос: виджетов уже нет
         self._set_busy(False)
         callback(value)
+        if self.closed:
+            return  # обработчик закрыл экран (истёкшая сессия -> выход): отложенное меню не нужно
         if self.menu_pending and not self.busy:
             self.menu_pending = False
             self.reload_menu()

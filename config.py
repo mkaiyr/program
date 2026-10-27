@@ -29,8 +29,18 @@ def _is_privileged_key(key):
 
 def load_config():
     """Возвращает (url, key) или выбрасывает ConfigError с понятным текстом."""
-    parser = configparser.ConfigParser()
-    if not parser.read(CONFIG_PATH, encoding="utf-8"):
+    # Значения читаются как есть: подстановка %(…)s не нужна, а знак % в ключе или адресе
+    # иначе давал бы ошибку разбора с самим значением в тексте исключения
+    parser = configparser.ConfigParser(interpolation=None)
+    # Текст исключений не показывается: configparser цитирует строку файла, а в ней может быть ключ
+    try:
+        found = parser.read(CONFIG_PATH, encoding="utf-8")
+    except UnicodeDecodeError as e:
+        raise ConfigError(f"Файл {CONFIG_PATH.name} должен быть сохранён в кодировке UTF-8.") from e
+    except configparser.Error as e:
+        raise ConfigError(f"Файл {CONFIG_PATH.name} повреждён: нужна секция [supabase] с параметрами "
+                          "url и key, каждый один раз (образец — config.example.ini).") from e
+    if not found:
         raise ConfigError(f"Не найден файл настроек: {CONFIG_PATH}")
 
     url = parser.get("supabase", "url", fallback="").strip()

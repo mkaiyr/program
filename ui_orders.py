@@ -116,6 +116,8 @@ class OrdersWindow(tk.Toplevel):
             return  # окно закрыли (выход из аккаунта), пока шёл запрос: виджетов уже нет
         self._set_busy(False)
         callback(value)
+        if self.closed:
+            return  # обработчик закрыл окно (истёкшая сессия -> выход): отложенное обновление не нужно
         if self.reload_pending and not self.busy:
             self.reload_pending = False
             self.reload()

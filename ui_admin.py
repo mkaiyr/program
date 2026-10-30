@@ -1,20 +1,23 @@
-"""Окно администратора: управление меню.
+"""Окно администратора: управление меню и решения по позициям кухни и бара.
 
 Скрытие кнопки для кассира — только удобство. Права проверяются в Supabase
 (функции admin_* и политика menu_select_admin из sql/02_admin_menu.sql).
+Позиции, предложенные станциями, ждут решения: «Подтвердить» или «Отклонить»
+(admin_approve_menu_item / admin_reject_menu_item, sql/09_station_menu.sql).
 """
 
 import threading
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, simpledialog, ttk
 
 import ui_theme as theme
-from db import STATIONS, AppError, check_menu_item, parse_menu_code
+from db import (MAX_REJECT_REASON, MENU_STATUSES, STATIONS, AppError, check_menu_item, menu_status,
+                parse_menu_code, unexpected_error)
 from search import search
 from ui_order import fmt_money
 
-STATUS_TEXT = {True: "Есть", False: "Нет"}
 STATION_BY_LABEL = {label: key for key, label in STATIONS.items()}
+TOGGLEABLE = ("on_sale", "out_of_stock")  # «Есть / Нет» — только у подтверждённых позиций
 
 
 class MenuAdminWindow(tk.Toplevel):
@@ -62,16 +65,21 @@ class MenuAdminWindow(tk.Toplevel):
         ttk.Button(search_row, text="✕", width=2, command=lambda: self.search_var.set("")).pack(side="left")
         self.found_label = ttk.Label(search_row, text="", style="Muted.TLabel")
         self.found_label.pack(side="right")
+        self.pending_only = tk.BooleanVar(value=False)
+        ttk.Checkbutton(search_row, text="Только ждущие решения", variable=self.pending_only,
+                        command=self._render_tree).pack(side="right", padx=12)
 
         cols = ("code", "name", "category", "station", "price", "status")
         # Небольшая запрошенная высота: таблица растягивается, если есть место, но не вытесняет форму
         self.tree = ttk.Treeview(root, columns=cols, show="headings", selectmode="browse", height=5)
         for col, title, width, anchor in (("code", "Код", 70, "center"), ("name", "Позиция", 220, "w"),
                                           ("category", "Категория", 120, "w"), ("station", "Станция", 80, "center"),
-                                          ("price", "Цена", 110, "e"), ("status", "В продаже", 80, "center")):
+                                          ("price", "Цена", 110, "e"), ("status", "Статус", 120, "center")):
             self.tree.heading(col, text=title)
             self.tree.column(col, width=width, anchor=anchor)
         self.tree.tag_configure("off", foreground=theme.DISABLED_FG)
+        self.tree.tag_configure("pending", foreground=theme.WARNING)
+        self.tree.tag_configure("rejected", foreground=theme.DISABLED_FG)
         self.tree.pack(fill="both", expand=True)
         self.tree.bind("<<TreeviewSelect>>", lambda _e: self._on_select())
 
@@ -81,6 +89,11 @@ class MenuAdminWindow(tk.Toplevel):
         self.new_btn.pack(side="left")
         self.toggle_btn = ttk.Button(list_btns, text="Есть / Нет", command=self.toggle_available)
         self.toggle_btn.pack(side="left", padx=6)
+        # Решение по позиции, предложенной кухней или баром
+        self.reject_btn = ttk.Button(list_btns, text="Отклонить", style="Danger.TButton", command=self.reject)
+        self.reject_btn.pack(side="right")
+        self.approve_btn = ttk.Button(list_btns, text="Подтвердить", style="Success.TButton", command=self.approve)
+        self.approve_btn.pack(side="right", padx=6)
 
         form = ttk.LabelFrame(root, text="Новая позиция", padding=8)
         form.pack(fill="x")
@@ -141,7 +154,7 @@ class MenuAdminWindow(tk.Toplevel):
             except AppError as e:
                 deliver(on_err, e)
             except Exception as e:  # непредвиденная ошибка не должна молча ронять поток
-                deliver(on_err, AppError(f"Непредвиденная ошибка: {e}"))
+                deliver(on_err, unexpected_error(e))
             else:
                 deliver(on_ok, result)
 
@@ -156,7 +169,8 @@ class MenuAdminWindow(tk.Toplevel):
     def _set_busy(self, busy):
         self.busy = busy
         state = "disabled" if busy else "normal"
-        for btn in (self.save_btn, self.toggle_btn, self.new_btn, self.reload_btn, self.close_btn):
+        for btn in (self.save_btn, self.toggle_btn, self.new_btn, self.reload_btn, self.close_btn,
+                    self.approve_btn, self.reject_btn):
             btn.config(state=state)
         if not busy:
             self._update_toggle_btn()
@@ -193,19 +207,28 @@ class MenuAdminWindow(tk.Toplevel):
             self._show_status(done_text, "green")
         else:
             off = sum(1 for item in items if not item["is_available"])
-            self._show_status(f"Позиций: {len(items)}, из них не в продаже: {off}", "gray")
+            text = f"Позиций: {len(items)}, из них не в продаже: {off}"
+            pending = sum(1 for item in items if menu_status(item) == "pending")
+            if pending:
+                text += f". Ждут решения: {pending} — отметьте «Только ждущие решения»"
+            self._show_status(text, "orange" if pending else "gray")
 
     def _render_tree(self):
         """Таблица с учётом поиска по коду или названию (локально, без запроса к серверу)."""
         if not hasattr(self, "tree"):
             return
-        found = search(self.items.values(), self.search_var.get())
+        items = self.items.values()
+        if self.pending_only.get():
+            items = [item for item in items if menu_status(item) == "pending"]
+        found = search(items, self.search_var.get())
         self.tree.delete(*self.tree.get_children())
         for item in found:
-            self.tree.insert("", "end", iid=str(item["id"]), tags=() if item["is_available"] else ("off",),
+            status = menu_status(item)
+            tags = {"on_sale": (), "out_of_stock": ("off",)}.get(status, (status,))
+            self.tree.insert("", "end", iid=str(item["id"]), tags=tags,
                              values=(item.get("code", ""), item["name"], item["category"],
                                      STATIONS.get(item.get("station", "kitchen"), ""), fmt_money(item["price"]),
-                                     STATUS_TEXT[item["is_available"]]))
+                                     MENU_STATUSES[status]))
         if self.search_var.get().strip():
             self.found_label.config(text=f"Найдено: {len(found)}" if found else "Ничего не найдено")
         else:
@@ -233,7 +256,10 @@ class MenuAdminWindow(tk.Toplevel):
 
     def _show_in_form(self, item):
         self.editing_id = item["id"]
-        self.form.config(text=f"Изменение: {item['name']}")
+        if menu_status(item) == "rejected":
+            self.form.config(text=f"Отклонена: {item['name']} — изменить нельзя")
+        else:
+            self.form.config(text=f"Изменение: {item['name']}")
         self.save_btn.config(text="Сохранить изменения")
         self._fill_form(item["name"], item["category"], f"{item['price']:.2f}")
         self._set_code_field(str(item.get("code", "")), editable=False)
@@ -249,12 +275,21 @@ class MenuAdminWindow(tk.Toplevel):
         self.code_hint.config(text="пусто — назначится автоматически" if editable else "код постоянный")
 
     def _update_toggle_btn(self):
+        """Кнопки по состоянию позиции: наличие — у подтверждённых, решение — у ожидающих."""
         item = self.items.get(self._selected_id())
-        if item is None:
-            self.toggle_btn.config(text="Есть / Нет", state="disabled")
-        else:
+        status = menu_status(item) if item is not None else None
+        if status in TOGGLEABLE:
             self.toggle_btn.config(text="Снять с продажи (Нет)" if item["is_available"]
                                    else "Вернуть в продажу (Есть)", state="normal")
+        else:
+            self.toggle_btn.config(text="Есть / Нет", state="disabled")
+        decision = "normal" if status == "pending" else "disabled"
+        self.approve_btn.config(state=decision)
+        self.reject_btn.config(state=decision)
+        # Отклонённую позицию сервер изменить не даст (ITEM_REJECTED) — кнопка сразу неактивна
+        editing = self.items.get(self.editing_id)
+        rejected = editing is not None and menu_status(editing) == "rejected"
+        self.save_btn.config(state="disabled" if rejected or self.busy else "normal")
 
     def _fill_form(self, name, category, price):
         for widget, value in ((self.name_entry, name), (self.category_box, category), (self.price_entry, price)):
@@ -312,6 +347,8 @@ class MenuAdminWindow(tk.Toplevel):
         if item is None:
             self._show_status("Выберите позицию в списке.", "orange")
             return
+        if menu_status(item) not in TOGGLEABLE:
+            return  # ожидающую позицию выводит в продажу решение, отклонённую — никак
         available = not item["is_available"]
         if not available and not messagebox.askyesno(
                 "Снять с продажи", f"Снять «{item['name']}» с продажи?\nКассиры перестанут её видеть.",
@@ -322,10 +359,54 @@ class MenuAdminWindow(tk.Toplevel):
         self._run(lambda: self.db.set_menu_item_available(item["id"], available),
                   lambda row: self._saved(row, message), self._handle_error)
 
+    # ---------- Решения по позициям станций ----------
+
+    def _selected_pending(self):
+        item = self.items.get(self._selected_id())
+        if item is None or menu_status(item) != "pending":
+            self._show_status("Выберите позицию, которая ждёт решения.", "orange")
+            return None
+        return item
+
+    def approve(self):
+        if self.busy:
+            return
+        item = self._selected_pending()
+        if item is None:
+            return
+        station = STATIONS.get(item.get("station", "kitchen"), "")
+        answer = messagebox.askyesnocancel(
+            "Подтвердить позицию",
+            f"«{item['name']}» ({station}, {fmt_money(item['price'])}).\n\n"
+            "Да — подтвердить и сразу в продажу.\nНет — подтвердить, но пока «нет в наличии».", parent=self)
+        if answer is None:
+            return
+        self._show_status("Сохранение решения...", "gray")
+        self._run(lambda: self.db.approve_menu_item(item["id"], answer),
+                  lambda row: self._saved(row, "Позиция подтверждена"), self._handle_error)
+
+    def reject(self):
+        if self.busy:
+            return
+        item = self._selected_pending()
+        if item is None:
+            return
+        reason = simpledialog.askstring(
+            "Отклонить позицию",
+            f"Отклонить «{item['name']}»? Позиция не попадёт в продажу.\n"
+            f"Причина для станции (необязательно, до {MAX_REJECT_REASON} символов):", parent=self)
+        if reason is None:
+            return  # «Отмена»
+        if len(reason.strip()) > MAX_REJECT_REASON:
+            messagebox.showwarning("Причина", f"Не длиннее {MAX_REJECT_REASON} символов.", parent=self)
+            return
+        self._show_status("Сохранение решения...", "gray")
+        self._run(lambda: self.db.reject_menu_item(item["id"], reason),
+                  lambda row: self._saved(row, "Позиция отклонена"), self._handle_error)
+
     def _saved(self, row, message):
         code = f" (код {row['code']})" if row.get("code") else ""
-        text = (f"{message}: {row['name']}{code} — {fmt_money(row['price'])}, "
-                f"в продаже: {STATUS_TEXT[row['is_available']]}")
+        text = f"{message}: {row['name']}{code} — {fmt_money(row['price'])}, {MENU_STATUSES[menu_status(row)]}"
         self.editing_id = row["id"]
         self._show_status(text, "green")
         messagebox.showinfo("Сохранено", text, parent=self)

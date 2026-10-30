@@ -109,6 +109,10 @@ class DatabaseTest(unittest.TestCase):
         query.execute.return_value.data = []
         self.db.load_menu()
         self.assertIn("code", query.select.call_args.args[0])
+        # До миграции 09 функции station_menu нет (PGRST202) — администратор читает таблицу
+        self.db.client.rpc.return_value.execute.side_effect = APIError(
+            {"message": "Could not find the function public.station_menu", "code": "PGRST202",
+             "details": "", "hint": ""})
         self.db.load_all_menu()
         self.assertIn("code", query.select.call_args.args[0])
 

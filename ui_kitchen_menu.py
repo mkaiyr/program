@@ -1,29 +1,41 @@
-"""Вкладка «Меню» на экране кухни: наличие блюд.
+"""Вкладка «Меню» на экране кухни и бара: наличие позиций и предложение новых.
 
 Только отображение и фильтры. Данные и запросы к Supabase остаются в
-KitchenFrame (ui_kitchen.py): панель получает блюда через set_items() и
-сообщает о нажатии кнопки через on_toggle(item_id). Цены здесь не показываются.
+KitchenFrame (ui_kitchen.py): панель получает позиции через set_items() и
+сообщает о нажатиях через on_toggle(item_id) и on_propose(). Цены здесь не показываются.
+
+Состояния позиции (миграция 09): в продаже, нет в наличии, ждёт решения
+администратора, отклонена. Кнопка наличия — только у подтверждённых позиций.
 """
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 import ui_theme as theme
+from db import MENU_STATUSES, AppError, check_menu_item, menu_status, parse_menu_code
 from search import search
 
 ALL = "Все"
-AVAILABILITY = {"Все": None, "В продаже": True, "Нет в наличии": False}
+# Фильтр «Наличие»: подпись -> состояние позиции (None — все)
+AVAILABILITY = {"Все": None, "В продаже": "on_sale", "Нет в наличии": "out_of_stock",
+                "Ждут решения": "pending", "Отклонены": "rejected"}
+TOGGLEABLE = ("on_sale", "out_of_stock")  # наличие меняется только у подтверждённых позиций
+NOT_AVAILABLE_TEXT = ("Меню станции появится после обновления базы данных (миграция 09).\n"
+                      "Обратитесь к администратору.")
 BUTTON_WIDTH = 18  # в символах: «Снять с продажи» и «Вернуть в продажу» одной ширины
 NAME_WRAP = 460    # перенос длинных названий, чтобы не вытеснить статус и кнопку
 CARD_LIMIT = 100   # больше карточек не рисуется: при 500–1000 блюдах вкладка остаётся быстрой
 
 
 class KitchenMenuPanel(ttk.Frame):
-    def __init__(self, master, on_toggle):
+    def __init__(self, master, on_toggle, on_propose=None):
         super().__init__(master, padding=(4, 8, 4, 0))
         self.on_toggle = on_toggle
-        self.items = []     # [{id, name, category, is_available}] из kitchen_menu()
-        self.buttons = {}   # id блюда -> кнопка «Снять с продажи» / «Вернуть в продажу»
+        self.on_propose = on_propose
+        self.items = []     # [{id, name, category, is_available, status?}] из station_menu() / kitchen_menu()
+        self.buttons = {}   # id позиции -> кнопка «Снять с продажи» / «Вернуть в продажу»
+        self.can_propose = False  # предложения новых позиций — только после миграции 09
+        self.available = True     # False — меню станции на сервере ещё нет (бар до миграции 09)
         self.busy = False
         self.reflow_job = None
         self.render_job = None
@@ -53,7 +65,11 @@ class KitchenMenuPanel(ttk.Frame):
         titles = ttk.Frame(top)
         titles.pack(side="left", anchor="w")
         ttk.Label(titles, text="Управление меню", style="H2.TLabel").pack(anchor="w")
-        ttk.Label(titles, text="Управляйте наличием блюд", style="Muted.TLabel").pack(anchor="w")
+        ttk.Label(titles, text="Наличие позиций; новые — после решения администратора",
+                  style="Muted.TLabel").pack(anchor="w")
+        self.propose_btn = ttk.Button(top, text="Предложить позицию", style="Primary.TButton",
+                                      command=self._propose, state="disabled")
+        self.propose_btn.pack(side="left", padx=(16, 0), anchor="s")
 
         search = ttk.Frame(top)
         search.pack(side="right", anchor="e")
@@ -82,8 +98,9 @@ class KitchenMenuPanel(ttk.Frame):
             self._chip(availability, label, self.availability_var).pack(side="left", padx=(0, 6), pady=2)
         self.reset_btn = ttk.Button(availability, text="Сбросить фильтры", command=self.reset_filters)
         self.reset_btn.pack(side="right")
-        self.counts = ttk.Label(availability, text="", style="CardMuted.TLabel")
-        self.counts.pack(side="right", padx=(12, 12))
+        # Отдельной строкой: пять фильтров состояния и кнопка занимают всю ширину
+        self.counts = ttk.Label(box, text="", style="CardMuted.TLabel")
+        self.counts.grid(row=2, column=1, sticky="w", padx=(12, 0), pady=(6, 0))
 
     def _chip(self, master, label, variable):
         return ttk.Radiobutton(master, text=label, value=label, variable=variable, style="Chip.Toolbutton")
@@ -115,9 +132,12 @@ class KitchenMenuPanel(ttk.Frame):
 
     # ---------- Данные ----------
 
-    def set_items(self, items):
+    def set_items(self, items, can_propose=False, available=True):
         """Новые данные с сервера. Фильтры и поиск сохраняются."""
         self.items = list(items)
+        self.can_propose = can_propose
+        self.available = available
+        self._update_propose_btn()
         categories = sorted({item["category"] for item in self.items})
         if self.category_var.get() not in categories:
             self.category_var.set(ALL)
@@ -130,11 +150,11 @@ class KitchenMenuPanel(ttk.Frame):
         self.render(keep_position=True)
 
     def filtered(self):
-        """Блюда с учётом поиска (код или название), категории и наличия одновременно."""
+        """Позиции с учётом поиска (код или название), категории и состояния одновременно."""
         category = self.category_var.get()
         wanted = AVAILABILITY.get(self.availability_var.get())
         items = [item for item in sorted(self.items, key=lambda i: (i["category"], i["name"]))
-                 if category in (ALL, item["category"]) and wanted in (None, item["is_available"])]
+                 if category in (ALL, item["category"]) and wanted in (None, menu_status(item))]
         return search(items, self.search_var.get())
 
     def reset_filters(self):
@@ -161,6 +181,15 @@ class KitchenMenuPanel(ttk.Frame):
         self.busy = busy
         for btn in self.buttons.values():
             btn.config(state="disabled" if busy else "normal")
+        self._update_propose_btn()
+
+    def _update_propose_btn(self):
+        enabled = self.can_propose and self.on_propose is not None and not self.busy
+        self.propose_btn.config(state="normal" if enabled else "disabled")
+
+    def _propose(self):
+        if self.can_propose and not self.busy and self.on_propose is not None:
+            self.on_propose()
 
     # ---------- Список ----------
 
@@ -170,9 +199,12 @@ class KitchenMenuPanel(ttk.Frame):
         self.list.clear(keep_position=keep_position)
         self.buttons.clear()
         items = self.filtered()
-        on_sale = sum(1 for item in self.items if item["is_available"])
-        self.counts.config(text=f"Показано {len(items)} из {len(self.items)}  ·  "
-                                f"в продаже {on_sale}, нет {len(self.items) - on_sale}")
+        statuses = [menu_status(item) for item in self.items]
+        text = (f"Показано {len(items)} из {len(self.items)}  ·  "
+                f"в продаже {statuses.count('on_sale')}, нет {statuses.count('out_of_stock')}")
+        if statuses.count("pending"):
+            text += f", ждут решения {statuses.count('pending')}"
+        self.counts.config(text=text)
         filters_set = (self.search_var.get().strip() or self.category_var.get() != ALL
                        or self.availability_var.get() != ALL)
         self.reset_btn.config(state="normal" if filters_set else "disabled")
@@ -189,7 +221,9 @@ class KitchenMenuPanel(ttk.Frame):
     def _empty(self, filters_set):
         box = tk.Frame(self.list.inner, bg=theme.BG)
         box.pack(fill="x", pady=48)
-        if filters_set:
+        if not self.available:
+            ttk.Label(box, text=NOT_AVAILABLE_TEXT, style="Muted.TLabel", justify="center").pack()
+        elif filters_set:
             ttk.Label(box, text="Блюда не найдены", style="H2.TLabel").pack()
             ttk.Label(box, text="Измените поиск или фильтры", style="Muted.TLabel").pack(pady=(4, 12))
             ttk.Button(box, text="Сбросить фильтры", command=self.reset_filters).pack()
@@ -198,17 +232,22 @@ class KitchenMenuPanel(ttk.Frame):
 
     def _card(self, item):
         available = item["is_available"]
+        status = menu_status(item)
         box = theme.card(self.list.inner)
         box.columnconfigure(0, weight=1)
 
         ttk.Label(box, text=item["name"], style="CardH2.TLabel", wraplength=NAME_WRAP,
                   foreground=theme.TEXT if available else theme.MUTED).grid(row=0, column=0, sticky="w")
         secondary = f"Код {item['code']}  ·  {item['category']}" if item.get("code") else item["category"]
-        ttk.Label(box, text=secondary, style="CardMuted.TLabel").grid(row=1, column=0, sticky="w")
+        if status == "rejected" and item.get("reject_reason"):
+            secondary += f"  ·  причина: {item['reject_reason']}"
+        ttk.Label(box, text=secondary, style="CardMuted.TLabel", wraplength=NAME_WRAP).grid(
+            row=1, column=0, sticky="w")
 
-        ttk.Label(box, text="●  В продаже" if available else "●  Нет в наличии", style="CardBold.TLabel",
-                  foreground=theme.SUCCESS if available else theme.DANGER).grid(
-            row=0, column=1, rowspan=2, padx=(16, 16))
+        ttk.Label(box, text=f"●  {MENU_STATUSES[status]}", style="CardBold.TLabel",
+                  foreground=theme.MENU_STATUS_COLORS[status]).grid(row=0, column=1, rowspan=2, padx=(16, 16))
+        if status not in TOGGLEABLE:
+            return box  # ждёт решения или отклонена: наличие меняет только администратор решением
 
         btn = ttk.Button(box, width=BUTTON_WIDTH,
                          text="Снять с продажи" if available else "Вернуть в продажу",
@@ -219,3 +258,67 @@ class KitchenMenuPanel(ttk.Frame):
             btn.config(state="disabled")
         self.buttons[item["id"]] = btn
         return box
+
+
+class ProposeDialog(tk.Toplevel):
+    """Предложение новой позиции станцией: название, категория, цена, необязательный код.
+
+    Поля проверяются здесь (как у администратора), затем on_submit(name, category, price_text,
+    code_text) отправляет запрос. Позиция появится в меню после решения администратора.
+    """
+
+    def __init__(self, master, categories, on_submit, draft=None):
+        super().__init__(master)
+        self.on_submit = on_submit
+        self.title("Предложить позицию")
+        self.resizable(False, False)
+        self.transient(master.winfo_toplevel())
+
+        box = ttk.Frame(self, padding=16)
+        box.pack(fill="both", expand=True)
+        box.columnconfigure(1, weight=1)
+        ttk.Label(box, text="Новая позиция станции", style="H2.TLabel").grid(row=0, column=0, columnspan=2,
+                                                                             sticky="w")
+        ttk.Label(box, text="Появится в меню после решения администратора.", style="Muted.TLabel").grid(
+            row=1, column=0, columnspan=2, sticky="w", pady=(0, 10))
+
+        draft = draft or {}
+        self.name_entry = self._field(box, 2, "Название:", ttk.Entry(box, width=32), draft.get("name", ""))
+        self.category_box = self._field(box, 3, "Категория:", ttk.Combobox(box, values=sorted(categories)),
+                                        draft.get("category", ""))
+        self.price_entry = self._field(box, 4, "Цена, ₸:", ttk.Entry(box, width=14), draft.get("price", ""))
+        self.code_entry = self._field(box, 5, "Код (необязательно):", ttk.Entry(box, width=10),
+                                      draft.get("code", ""))
+
+        buttons = ttk.Frame(box)
+        buttons.grid(row=6, column=0, columnspan=2, sticky="e", pady=(12, 0))
+        ttk.Button(buttons, text="Отмена", command=self.destroy).pack(side="right")
+        ttk.Button(buttons, text="Отправить на проверку", style="Primary.TButton",
+                   command=self.submit).pack(side="right", padx=8)
+        self.bind("<Return>", lambda _e: self.submit())
+        self.bind("<Escape>", lambda _e: self.destroy())
+        self.name_entry.focus_set()
+        self.grab_set()
+
+    @staticmethod
+    def _field(box, row, label, widget, value):
+        ttk.Label(box, text=label).grid(row=row, column=0, sticky="w", pady=3, padx=(0, 8))
+        widget.grid(row=row, column=1, sticky="ew", pady=3)
+        widget.insert(0, value)
+        return widget
+
+    def values(self):
+        return {"name": self.name_entry.get(), "category": self.category_box.get(),
+                "price": self.price_entry.get(), "code": self.code_entry.get()}
+
+    def submit(self):
+        draft = self.values()
+        try:
+            check_menu_item(draft["name"], draft["category"], draft["price"])
+            parse_menu_code(draft["code"])
+        except AppError as e:
+            messagebox.showwarning("Проверьте данные", str(e), parent=self)
+            return
+        self.grab_release()
+        self.destroy()
+        self.on_submit(draft)

@@ -7,7 +7,7 @@ from decimal import Decimal
 from tkinter import messagebox, ttk
 
 import ui_theme as theme
-from db import AppError
+from db import AppError, unexpected_error
 from search import find_by_code, search
 
 MAX_QTY = 100     # совпадает с ограничением order_items.quantity
@@ -31,6 +31,9 @@ class OrderFrame(ttk.Frame):
         self.catalog_job = None  # отложенная перерисовка каталога при вводе в поиск
         self.cart = {}         # id -> {name, price, qty}
         self.request_id = None  # один ID на неизменённый заказ (защита от дублей)
+        # ID заказа, отправленного без ответа сервера: он мог сохраниться. Повтор с тем же ID
+        # безопасен, а изменённая корзина — уже новый заказ, поэтому перед ним предупреждение.
+        self.unconfirmed_id = None
         self.busy = False
         self.closed = False    # экран уничтожен: результаты фоновых запросов игнорируются
         self.is_admin = profile["role"] == "admin"
@@ -133,7 +136,7 @@ class OrderFrame(ttk.Frame):
             except AppError as e:
                 deliver(on_err, e)
             except Exception as e:  # непредвиденная ошибка не должна молча ронять поток
-                deliver(on_err, AppError(f"Непредвиденная ошибка: {e}"))
+                deliver(on_err, unexpected_error(e))
             else:
                 deliver(on_ok, result)
 
@@ -334,14 +337,32 @@ class OrderFrame(ttk.Frame):
         if not self.cart:
             self._show_status("Заказ пуст.", "orange")
             return
+        if self.unconfirmed_id is not None and self.request_id != self.unconfirmed_id:
+            if not messagebox.askyesno(
+                    "Предыдущий заказ не подтверждён",
+                    "Прошлая попытка оформить заказ прервалась из-за связи — тот заказ мог сохраниться.\n"
+                    "Проверьте окно «Заказы», чтобы не оформить его дважды.\n\n"
+                    "Оформить текущий заказ как новый?", parent=self):
+                return
+            self.unconfirmed_id = None
         if self.request_id is None:
             self.request_id = uuid.uuid4()
         items = [(item_id, line["qty"], line["price"]) for item_id, line in self.cart.items()]
         request_id = self.request_id
         self._show_status("Сохранение заказа...", "gray")
-        self._run(lambda: self.db.create_order(request_id, items), self._order_saved, self._handle_error)
+        self._run(lambda: self.db.create_order(request_id, items), self._order_saved,
+                  lambda error: self._order_failed(request_id, error))
+
+    def _order_failed(self, request_id, error):
+        if error.code == "network":
+            self.unconfirmed_id = request_id  # ответа нет: заказ мог сохраниться
+        elif request_id == self.unconfirmed_id and error.code != "auth":
+            # Сервер ответил отказом по этому же ID: заказа с ним нет (повтор вернул бы его)
+            self.unconfirmed_id = None
+        self._handle_error(error)
 
     def _order_saved(self, result):
+        self.unconfirmed_id = None  # повтор с тем же ID вернул заказ или сохранён новый
         self.cart.clear()
         self._cart_changed()
         text = f"Заказ № {result['order_id']} оформлен. Сумма: {fmt_money(result['total'])}"

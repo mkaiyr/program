@@ -1,5 +1,6 @@
 """Работа с Supabase: подключение, вход сотрудника, меню и заказы."""
 
+import logging
 import re
 import threading
 from datetime import datetime
@@ -35,13 +36,18 @@ ROLE_TRANSITIONS = {
 }
 STATIONS = {"kitchen": "Кухня", "bar": "Бар"}
 STATION_ORDERS_RPC = {"kitchen": "kitchen_orders", "bar": "bar_orders"}
+# Состояния позиции меню (sql/09_station_menu.sql, функция _menu_item_status)
+MENU_STATUSES = {"on_sale": "В продаже", "out_of_stock": "Нет в наличии",
+                 "pending": "Ждёт решения", "rejected": "Отклонена"}
+MAX_REJECT_REASON = 200  # совпадает с проверкой в admin_reject_menu_item
 ORDERS_LIMIT = 100  # сколько последних заказов показывать
 
 # Ошибки серверной функции create_order (поле message) -> (код для UI, текст)
 RPC_ERRORS = {
     "MENU_CHANGED": ("menu_changed", "Меню изменилось: {details}. Меню обновлено, проверьте заказ."),
     "NOT_AUTHENTICATED": ("auth", "Сессия истекла. Войдите снова."),
-    "NOT_ALLOWED": ("auth", "У этой учётной записи нет доступа к кассе."),
+    # Вызывают и касса, и кухня с баром: учётную запись деактивировали или сменили роль
+    "NOT_ALLOWED": ("auth", "У этой учётной записи больше нет доступа к этому действию. Войдите снова."),
     "INVALID_REQUEST": ("invalid", "Некорректный запрос."),
     "INVALID_ITEMS": ("invalid", "Некорректный состав заказа."),
     "DUPLICATE_ITEM": ("invalid", "Позиция повторяется в заказе."),
@@ -65,7 +71,28 @@ RPC_ERRORS = {
     # Станции (sql/08_bar_stations.sql)
     "STATION_NOT_ALLOWED": ("forbidden", "Эта часть заказа готовится на другой станции."),
     "INVALID_STATION": ("invalid", "Неизвестная станция приготовления."),
+    # Меню станций и решения администратора (sql/09_station_menu.sql)
+    "ITEM_REJECTED": ("invalid", "Позиция отклонена администратором — изменить её нельзя. Обновите список."),
+    "NOT_APPROVED": ("invalid", "Позиция ещё ждёт решения администратора. Обновите список."),
+    "ALREADY_APPROVED": ("invalid", "Решение по позиции уже принято. Обновите список."),
+    # Удаление заказов (sql/10_order_deletion.sql)
+    "ORDER_NOT_COMPLETED": ("order_changed", "Удалить можно только выданный заказ. Список обновлён."),
+    "ORDER_NOT_DELETED": ("order_changed", "Навсегда можно удалить только заказ из «Удалённых заказов». "
+                                           "Список обновлён."),
+    "PURGE_FAILED": (None, "Заказ не удалён: сервер отменил операцию, данные не изменены. Попробуйте ещё раз."),
 }
+
+# Ошибки PostgreSQL без своего кода в message (например, нарушение ограничения таблицы).
+# Текст сервера сотруднику не показывается: в нём имена таблиц и ограничений.
+PG_ERRORS = {
+    "23514": ("invalid", "Изменение противоречит правилам базы данных. Обновите список и попробуйте снова."),
+    "42501": ("forbidden", "Недостаточно прав для этого действия."),
+    "22P02": ("invalid", "Некорректные данные в запросе."),
+    "57014": (None, "Сервер не успел ответить. Попробуйте ещё раз."),
+}
+UNEXPECTED_ERROR = "Непредвиденная ошибка. Попробуйте ещё раз; если повторится — обратитесь к администратору."
+
+log = logging.getLogger(__name__)
 
 
 class AppError(Exception):
@@ -135,6 +162,25 @@ def _check_station(station):
     return station
 
 
+def menu_status(item):
+    """Состояние позиции. До миграции 09 сервер его не присылает — тогда по наличию."""
+    status = item.get("status")
+    if status in MENU_STATUSES:
+        return status
+    return "on_sale" if item.get("is_available") else "out_of_stock"
+
+
+def _check_menu_rows(rows):
+    """Позиции меню из ответа сервера: экраны берут эти поля без проверок."""
+    if not isinstance(rows, list) or not all(
+            isinstance(row, dict) and type(row.get("id")) is int and isinstance(row.get("name"), str)
+            and isinstance(row.get("category"), str) and isinstance(row.get("is_available"), bool)
+            and row.get("status", "on_sale") in MENU_STATUSES
+            for row in rows):
+        raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+    return rows
+
+
 def _check_items(items, keys=()):
     """Позиции заказа из ответа сервера: список объектов с названием и количеством (и полями keys).
 
@@ -160,10 +206,22 @@ def _api_error(e, default_text):
     if e.message in RPC_ERRORS:
         code, text = RPC_ERRORS[e.message]
         return AppError(text.format(details=e.details or ""), code)
-    return AppError(f"{default_text} ({e.message})")
+    # Подробности — в журнал для разработчика, сотруднику — понятный текст и код ошибки
+    log.warning("Ошибка сервера %s: %s", e.code, e.message)
+    if e.code in PG_ERRORS:
+        code, text = PG_ERRORS[e.code]
+        return AppError(text, code)
+    return AppError(f"{default_text}. Код ошибки: {e.code}." if e.code else f"{default_text}.")
+
+
+def unexpected_error(e):
+    """Непредвиденное исключение в фоновом запросе -> AppError без технических подробностей."""
+    log.exception("Непредвиденная ошибка в фоновом запросе", exc_info=e)
+    return AppError(UNEXPECTED_ERROR)
 
 
 class Database:
+    profile = None         # профиль вошедшего сотрудника (sign_in), None — никто не вошёл
     _access_token = None   # токен текущей сессии (из событий Auth): отзыв при выходе без get_session()
     _revoke_thread = None  # фоновый отзыв прежней сессии на сервере (выход без ожидания)
 
@@ -246,9 +304,30 @@ class Database:
         self.profile = profile
         return profile
 
+    def _check_still_allowed(self):
+        """Сотрудника могли деактивировать или сменить ему роль во время смены.
+
+        Тогда RLS молча скрывает меню и заказы (касса показала бы пустое меню без объяснений),
+        поэтому профиль перечитывается: такая сессия — ошибка «auth», экран входа.
+        Свой профиль виден всегда (политика profiles_select_own).
+        """
+        if self.profile is None:
+            return
+        result = (
+            self.client.table("profiles")
+            .select("is_active, role")
+            .eq("id", self.profile["id"])
+            .limit(1)
+            .execute()
+        )
+        row = result.data[0] if result.data else None
+        if not row or not row.get("is_active") or row.get("role") != self.profile["role"]:
+            raise AppError("Доступ этой учётной записи изменён администратором. Войдите снова.", "auth")
+
     def load_menu(self):
         """Доступные позиции меню: [{id, code, name, category, price: Decimal}]."""
         try:
+            self._check_still_allowed()
             result = (
                 self.client.table("menu_items")
                 .select("id, code, name, category, price")
@@ -294,7 +373,24 @@ class Database:
     # Права проверяются на сервере: RLS для чтения и функции admin_* для записи.
 
     def load_all_menu(self):
-        """Все позиции меню, включая недоступные: [{id, code, name, category, price, is_available}]."""
+        """Все позиции меню для администратора: [{id, code, name, category, price, is_available,
+        station, status, reject_reason}].
+
+        После миграции 09 — RPC station_menu (со статусами «ждёт решения» и «отклонена»),
+        до неё — чтение таблицы, статус по наличию (menu_status).
+        """
+        try:
+            result = self.client.rpc("station_menu", {}).execute()
+        except PostgrestAPIError as e:
+            if e.code != "PGRST202":  # PGRST202 — функции нет: миграция 09 ещё не выполнена
+                raise _api_error(e, "Не удалось загрузить меню") from e
+            return self._load_menu_table()
+        except httpx.HTTPError as e:
+            raise AppError(NO_NETWORK, "network") from e
+        return [{**row, "price": to_money(row["price"])} for row in _check_menu_rows(result.data)]
+
+    def _load_menu_table(self):
+        """Все позиции меню до миграции 09 (RLS: администратор видит и недоступные)."""
         try:
             result = (
                 self.client.table("menu_items")
@@ -348,6 +444,77 @@ class Database:
             "Доступность не изменена",
         )
 
+    # ---------- Решения по позициям станций (миграция 09) ----------
+
+    def approve_menu_item(self, item_id, available):
+        """Подтвердить ожидающую позицию: available — сразу в продажу или пока «нет в наличии»."""
+        return self._admin_rpc("admin_approve_menu_item", {"p_id": item_id, "p_available": bool(available)},
+                               "Позиция не подтверждена")
+
+    def reject_menu_item(self, item_id, reason=""):
+        """Отклонить ожидающую позицию. Причина необязательна, до 200 символов."""
+        reason = (reason or "").strip()
+        if len(reason) > MAX_REJECT_REASON:
+            raise AppError(f"Причина — не длиннее {MAX_REJECT_REASON} символов.", "invalid")
+        params = {"p_id": item_id}
+        if reason:
+            params["p_reason"] = reason
+        return self._admin_rpc("admin_reject_menu_item", params, "Позиция не отклонена")
+
+    # ---------- Меню станции: кухня и бар (миграция 09) ----------
+
+    def load_station_menu(self, station):
+        """Меню своей станции: {"items": [...], "can_propose": bool, "available": bool}.
+
+        items — [{id, code, name, category, is_available, status, reject_reason}]; станцию сервер
+        определяет по роли. До миграции 09 (нет station_menu) кухня получает прежний kitchen_menu
+        без предложений, а у бара меню нет (available = False): kitchen_menu бару не разрешён.
+        """
+        try:
+            result = self.client.rpc("station_menu", {}).execute()
+        except PostgrestAPIError as e:
+            if e.code != "PGRST202":
+                raise _api_error(e, "Не удалось загрузить меню") from e
+            if _check_station(station) == "bar":
+                return {"items": [], "can_propose": False, "available": False}
+            return {"items": self.load_kitchen_menu(), "can_propose": False, "available": True}
+        except httpx.HTTPError as e:
+            raise AppError(NO_NETWORK, "network") from e
+        return {"items": _check_menu_rows(result.data), "can_propose": True, "available": True}
+
+    def propose_menu_item(self, name, category, price_text, code_text=""):
+        """Кухня или бар предлагает позицию своей станции: она ждёт решения администратора."""
+        name, category, price = check_menu_item(name, category, price_text)
+        params = {"p_name": name, "p_category": category, "p_price": str(price)}
+        code = parse_menu_code(code_text)
+        if code is not None:
+            params["p_code"] = code
+        return self._admin_rpc("station_add_menu_item", params, "Позиция не предложена")
+
+    def station_set_available(self, station, item_id, available):
+        """Наличие подтверждённой позиции своей станции.
+
+        Кухня — kitchen_set_menu_item_available (есть и до 09; после 09 проверяет станцию
+        и подтверждение), бар — station_set_menu_item_available (только после 09).
+        """
+        if _check_station(station) == "kitchen":
+            return self.kitchen_set_available(item_id, available)
+        try:
+            result = self.client.rpc(
+                "station_set_menu_item_available", {"p_id": item_id, "p_available": bool(available)}
+            ).execute()
+        except PostgrestAPIError as e:
+            if e.code == "PGRST202":
+                raise AppError("Меню бара не настроено на сервере. Обратитесь к администратору.") from e
+            raise _api_error(e, "Наличие не изменено") from e
+        except httpx.HTTPError as e:
+            raise AppError("Нет связи с сервером. Изменение не подтверждено — обновите список.",
+                           "network") from e
+        data = result.data
+        if not isinstance(data, dict) or data.get("is_available") is not bool(available):
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
     # ---------- Заказы ----------
     # Видимость задаёт RLS: кассир видит свои заказы, администратор — все.
 
@@ -384,6 +551,87 @@ class Database:
                            "line_total": to_money(i["line_total"])} for i in items],
             })
         return orders
+
+    # ---------- Удаление заказов (миграция 10) ----------
+    # Удалённые заказы обычная история не показывает: их скрывает RLS на сервере.
+    # Права (кассир — только свои выданные, остальное — администратор) проверяют функции.
+
+    def _order_rpc(self, name, params, default_text):
+        try:
+            result = self.client.rpc(name, params).execute()
+        except PostgrestAPIError as e:
+            if e.code == "PGRST202":  # функции нет: миграция 10 ещё не выполнена
+                raise AppError("Удаление заказов не настроено на сервере. Обратитесь к администратору.") from e
+            raise _api_error(e, default_text) from e
+        except httpx.HTTPError as e:
+            raise AppError("Нет связи с сервером. Действие не подтверждено — обновите список.", "network") from e
+        return result.data
+
+    @staticmethod
+    def _check_order_answer(data, order_id, **expected):
+        if (not isinstance(data, dict) or data.get("order_id") != order_id
+                or type(data.get("changed")) is not bool
+                or any(data.get(key) is not value for key, value in expected.items())):
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
+    def delete_order(self, order_id):
+        """Отправить выданный заказ в «Удалённые заказы». changed = False — уже был там."""
+        data = self._order_rpc("delete_order", {"p_order_id": order_id}, "Заказ не удалён")
+        return self._check_order_answer(data, order_id, deleted=True)
+
+    def restore_order(self, order_id):
+        """Администратор: вернуть заказ в обычную историю. changed = False — он и не был удалён."""
+        data = self._order_rpc("admin_restore_order", {"p_order_id": order_id}, "Заказ не восстановлен")
+        return self._check_order_answer(data, order_id, deleted=False)
+
+    def purge_order(self, order_id):
+        """Администратор: удалить навсегда заказ из «Удалённых заказов» (с позициями).
+
+        changed = False — заказ уже был стёрт раньше (есть в журнале).
+        """
+        data = self._order_rpc("admin_purge_order", {"p_order_id": order_id}, "Заказ не удалён")
+        data = self._check_order_answer(data, order_id, purged=True)
+        if type(data.get("items_deleted")) is not int:
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
+    def load_deleted_orders(self):
+        """Администратор: удалённые заказы [{id, created_at, cashier_name, total, deleted_at,
+        deleted_by_name, items}], последние удалённые сначала."""
+        data = self._order_rpc("admin_deleted_orders", {}, "Не удалось загрузить удалённые заказы")
+        if not isinstance(data, list) or not all(
+                isinstance(row, dict) and type(row.get("id")) is int and row.get("total") is not None
+                for row in data):
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return [{
+            "id": row["id"],
+            "created_at": to_local_time(row.get("created_at")),
+            "cashier_name": row.get("cashier_name") or "—",
+            "total": to_money(row["total"]),
+            "deleted_at": to_local_time(row.get("deleted_at")),
+            "deleted_by_name": row.get("deleted_by_name") or "—",
+            "items": [{**i, "unit_price": to_money(i["unit_price"]), "line_total": to_money(i["line_total"])}
+                      for i in sorted(_check_items(row.get("items"), ("id", "unit_price", "line_total")),
+                                      key=lambda i: i["id"])],
+        } for row in data]
+
+    def load_purge_log(self):
+        """Администратор: журнал окончательных удалений [{order_id, total, cashier_name,
+        order_created_at, purged_by_name, purged_at}], новые сначала."""
+        data = self._order_rpc("admin_purge_log", {}, "Не удалось загрузить журнал удалений")
+        if not isinstance(data, list) or not all(
+                isinstance(row, dict) and type(row.get("order_id")) is int and row.get("total") is not None
+                for row in data):
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return [{
+            "order_id": row["order_id"],
+            "total": to_money(row["total"]),
+            "cashier_name": row.get("cashier_name") or "—",
+            "order_created_at": to_local_time(row.get("order_created_at")),
+            "purged_by_name": row.get("purged_by_name") or "—",
+            "purged_at": to_local_time(row.get("purged_at")),
+        } for row in data]
 
     def load_kitchen_orders(self):
         """Активные заказы для кухни — см. load_station_orders."""

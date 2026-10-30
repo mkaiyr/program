@@ -1,10 +1,11 @@
-"""Экран станции — кухни или бара: карточки активных заказов (и наличие блюд на кухне).
+"""Экран станции — кухни или бара: карточки активных заказов и меню своей станции.
 
 Станция определяется ролью: kitchen — кухня, bar — бар. Заказы приходят из RPC
 kitchen_orders / bar_orders — только позиции своей станции, без цен и сумм.
 Статус своей части заказа меняет RPC set_station_status (sql/08_bar_stations.sql):
-готовый напиток не делает готовым весь заказ. Меню кухни — RPC kitchen_menu и
-kitchen_set_menu_item_available (sql/06_kitchen_menu.sql): только наличие блюда.
+готовый напиток не делает готовым весь заказ. Меню станции — RPC station_menu,
+наличие и предложение новых позиций (sql/09_station_menu.sql); до миграции 09 кухня
+работает с kitchen_menu, а у бара меню нет (см. Database.load_station_menu).
 Права и переходы проверяет сервер.
 """
 
@@ -16,9 +17,9 @@ from collections import deque
 from tkinter import messagebox, ttk
 
 import ui_theme as theme
-from db import ORDER_STATUSES, ROLE_TRANSITIONS, STATIONS, AppError
+from db import ORDER_STATUSES, ROLE_TRANSITIONS, STATIONS, AppError, menu_status, unexpected_error
 from search import search
-from ui_kitchen_menu import KitchenMenuPanel
+from ui_kitchen_menu import TOGGLEABLE, KitchenMenuPanel, ProposeDialog
 
 AUTO_REFRESH_MS = 7000  # автообновление заказов, чтобы новые появлялись сами
 SEEN_LIMIT = 5000       # сколько ID заказов помнить для защиты от повторного сигнала
@@ -86,8 +87,9 @@ class KitchenFrame(ttk.Frame):
         self.order_list = []      # заказы в порядке поступления
         self.shown_orders = None  # что сейчас нарисовано (чтобы не перерисовывать без изменений)
         self.search_job = None
-        self.menu_panel = None    # вкладка «Меню» — только у кухни
-        self.menu = {}            # id -> блюдо из db.load_kitchen_menu()
+        self.menu_panel = None    # вкладка «Меню» своей станции
+        self.menu = {}            # id -> позиция из db.load_station_menu()
+        self.propose_draft = None  # введённое в «Предложить позицию», если сервер отказал
         self.menu_loaded = False
         self.menu_pending = False  # меню запрошено, пока шёл другой запрос
         self.busy = False
@@ -116,9 +118,9 @@ class KitchenFrame(ttk.Frame):
         self.tabs = ttk.Notebook(self)
         self.tabs.pack(fill="both", expand=True)
         self.tabs.add(self._build_orders_tab(), text="Заказы")
-        if self.station == "kitchen":
-            self.menu_panel = KitchenMenuPanel(self.tabs, on_toggle=self.toggle_available)
-            self.tabs.add(self.menu_panel, text="Меню")
+        # Меню загружается при первом открытии вкладки: экран начинает с заказов
+        self.menu_panel = KitchenMenuPanel(self.tabs, on_toggle=self.toggle_available, on_propose=self.propose_item)
+        self.tabs.add(self.menu_panel, text="Меню")
         self.tabs.bind("<<NotebookTabChanged>>", lambda _e: self._on_tab())
 
         self.status = ttk.Label(self, text="", style="Status.TLabel", wraplength=900)
@@ -168,7 +170,7 @@ class KitchenFrame(ttk.Frame):
             except AppError as e:
                 deliver(on_err, e)
             except Exception as e:  # непредвиденная ошибка не должна молча ронять поток
-                deliver(on_err, AppError(f"Непредвиденная ошибка: {e}"))
+                deliver(on_err, unexpected_error(e))
             else:
                 deliver(on_ok, result)
 
@@ -337,39 +339,44 @@ class KitchenFrame(ttk.Frame):
                       f"Заказ № {order_id}: статус «{ORDER_STATUSES[next_status]}».")),
                   self._handle_error)
 
-    # ---------- Меню (наличие блюд) ----------
+    # ---------- Меню станции (наличие и предложения) ----------
 
     def reload_menu(self, done_text=None):
-        if self.menu_panel is None:  # у бара нет вкладки меню (и нет прав на kitchen_menu)
-            self.reload_orders(done_text=done_text)
-            return
         if self.busy:
             self.menu_pending = True
             return
         self._show_status("Загрузка меню...")
-        self._run(self.db.load_kitchen_menu, lambda items: self._menu_loaded(items, done_text), self._handle_error)
+        self._run(lambda: self.db.load_station_menu(self.station),
+                  lambda result: self._menu_loaded(result, done_text),
+                  lambda error: self._handle_error(error, menu=True))
 
     @property
     def menu_buttons(self):
-        """id блюда -> кнопка наличия на вкладке «Меню» (у бара вкладки нет)."""
-        return self.menu_panel.buttons if self.menu_panel is not None else {}
+        """id позиции -> кнопка наличия на вкладке «Меню»."""
+        return self.menu_panel.buttons
 
-    def _menu_loaded(self, items, done_text):
+    def _menu_loaded(self, result, done_text):
         self.menu_loaded = True
+        items = result["items"]
         self.menu = {item["id"]: item for item in items}
-        self.menu_panel.set_items(items)
-        off = sum(1 for item in items if not item["is_available"])
+        self.menu_panel.set_items(items, can_propose=result["can_propose"], available=result["available"])
+        statuses = [menu_status(item) for item in items]
         if done_text:
             self._show_status(done_text, "green")
+        elif not result["available"]:
+            self._show_status("Меню станции на сервере ещё не настроено.", "orange")
         else:
-            self._show_status(f"Блюд: {len(items)}, нет в наличии: {off}")
+            text = f"Позиций: {len(items)}, нет в наличии: {statuses.count('out_of_stock')}"
+            if statuses.count("pending"):
+                text += f", ждут решения администратора: {statuses.count('pending')}"
+            self._show_status(text)
 
     def toggle_available(self, item_id):
         if self.busy:
             return
         item = self.menu.get(item_id)
-        if item is None:
-            return
+        if item is None or menu_status(item) not in TOGGLEABLE:
+            return  # ожидающую и отклонённую позицию в продажу выводит только решение администратора
         available = not item["is_available"]
         if not available and not messagebox.askyesno(
                 "Снять с продажи", f"Снять «{item['name']}» с продажи?\n"
@@ -377,12 +384,33 @@ class KitchenFrame(ttk.Frame):
             return
         self._show_status("Сохранение...")
         text = f"«{item['name']}»: " + ("в продаже." if available else "нет в наличии.")
-        self._run(lambda: self.db.kitchen_set_available(item_id, available),
-                  lambda _r: self.reload_menu(done_text=text), self._handle_error)
+        self._run(lambda: self.db.station_set_available(self.station, item_id, available),
+                  lambda _r: self.reload_menu(done_text=text),
+                  lambda error: self._handle_error(error, menu=True))
+
+    def propose_item(self):
+        """«Предложить позицию»: новая позиция своей станции ждёт решения администратора."""
+        if self.busy:
+            return
+        categories = {item["category"] for item in self.menu.values()}
+        ProposeDialog(self, categories, on_submit=self._send_proposal, draft=self.propose_draft)
+
+    def _send_proposal(self, draft):
+        self.propose_draft = None
+        self._show_status("Отправка предложения...")
+        self._run(lambda: self.db.propose_menu_item(draft["name"], draft["category"], draft["price"], draft["code"]),
+                  lambda row: self.reload_menu(done_text=(
+                      f"«{row['name']}» (код {row['code']}) отправлена администратору — ждёт решения.")),
+                  lambda error: self._proposal_failed(draft, error))
+
+    def _proposal_failed(self, draft, error):
+        if error.code in ("invalid", "network"):
+            self.propose_draft = draft  # введённое не теряется: окно откроется с ним снова
+        self._handle_error(error, menu=True)
 
     # ---------- Ошибки и выход ----------
 
-    def _handle_error(self, error, quiet=False):
+    def _handle_error(self, error, quiet=False, menu=False):
         self._schedule_refresh()
         if quiet and error.code != "auth":
             # Ошибка фонового автообновления: без окон, следующая попытка — по таймеру
@@ -395,8 +423,11 @@ class KitchenFrame(ttk.Frame):
             messagebox.showerror("Доступ", str(error), parent=self)
             self.on_logout()
         elif error.code in ("order_changed", "forbidden"):
-            messagebox.showwarning("Статус не изменён", str(error), parent=self)
-            self.reload_orders()
+            messagebox.showwarning("Меню не изменено" if menu else "Статус не изменён", str(error), parent=self)
+            if menu:
+                self.reload_menu()
+            else:
+                self.reload_orders()
         elif error.code == "invalid":
             messagebox.showwarning("Не сохранено", str(error), parent=self)
             self.reload_menu()
@@ -420,4 +451,4 @@ class KitchenFrame(ttk.Frame):
 
 
 class BarFrame(KitchenFrame):
-    """Экран бара: тот же экран станции для роли bar (заказы с напитками, без меню)."""
+    """Экран бара: тот же экран станции для роли bar (барные позиции заказов и меню бара)."""

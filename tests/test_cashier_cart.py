@@ -181,6 +181,59 @@ class CartTest(unittest.TestCase):
         self.answer()
         self.assertNotEqual(self.db.orders[0][0], self.db.orders[1][0])
 
+    # ---------- Заказ без ответа сервера и изменённая корзина (возможный дубль) ----------
+
+    def network_failure(self):
+        """Заказ из позиции 1 отправлен, ответа нет: он мог сохраниться на сервере."""
+        self.frame.add_item(1)
+        self.db.order_fail = dbm.AppError("Нет связи", "network")
+        self.frame.submit()
+        self.answer()
+        self.db.order_fail = None
+        ui_order.messagebox.askyesno.reset_mock()  # вопрос «Очистить…» и т. п. не в счёт
+
+    def asked_unconfirmed(self):
+        return [c for c in ui_order.messagebox.askyesno.call_args_list
+                if c.args[0] == "Предыдущий заказ не подтверждён"]
+
+    def test_changed_cart_after_network_error_asks_first(self):
+        self.network_failure()
+        self.frame.add_item(2)                    # корзина изменена — это был бы второй заказ
+        ui_order.messagebox.askyesno.return_value = False
+        self.frame.submit()
+        self.assertEqual(len(self.asked_unconfirmed()), 1)
+        self.assertEqual(HeldThread.started, [])  # отказ — ничего не отправлено
+        self.assertEqual(len(self.db.orders), 1)
+
+        ui_order.messagebox.askyesno.return_value = True
+        self.frame.submit()                       # кассир проверил «Заказы» и подтвердил
+        self.answer()
+        self.assertEqual(len(self.db.orders), 2)
+        self.frame.add_item(1)
+        self.frame.submit()                       # после успешного заказа вопрос не повторяется
+        self.answer()
+        self.assertEqual(len(self.asked_unconfirmed()), 2)  # отказ и подтверждение — и всё
+
+    def test_unchanged_retry_does_not_ask(self):
+        self.network_failure()
+        self.frame.submit()                       # тот же ID: сервер вернёт уже сохранённый заказ
+        self.answer()
+        self.assertEqual(self.asked_unconfirmed(), [])
+        self.assertEqual(self.db.orders[0][0], self.db.orders[1][0])
+
+    def test_server_refusal_for_same_id_clears_warning(self):
+        """Сервер ответил отказом на повтор с тем же ID — заказа с этим ID нет, предупреждать не о чем."""
+        self.network_failure()
+        self.db.order_fail = dbm.AppError("Меню изменилось", "menu_changed")
+        self.frame.submit()
+        self.answer()
+        self.answer()                             # касса сама перезагрузила меню
+        self.db.order_fail = None
+        self.frame.add_item(2)
+        self.frame.submit()
+        self.answer()
+        self.assertEqual(self.asked_unconfirmed(), [])
+
     # ---------- Ввод по коду (Enter) ----------
 
     def test_enter_by_code_adds(self):

@@ -47,6 +47,9 @@ class FakeDB:
     def load_kitchen_menu(self):  # кухня: без цен
         return [{k: v for k, v in i.items() if k != "price"} for i in self.items.values()]
 
+    def load_station_menu(self, station):  # как Database до миграции 09: kitchen_menu, без предложений
+        return {"items": self.load_kitchen_menu(), "can_propose": False, "available": True}
+
     def load_station_orders(self, station):
         return []
 

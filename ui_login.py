@@ -6,7 +6,7 @@ from tkinter import font as tkfont
 from tkinter import ttk
 
 import ui_theme as theme
-from db import AppError
+from db import AppError, unexpected_error
 
 FONT = ("", 18)
 FORM_WIDTH = 320  # одинаковая ширина полей, клавиатуры, кнопки и сообщения
@@ -107,7 +107,7 @@ class LoginFrame(ttk.Frame):
         except AppError as e:
             deliver(self._fail, str(e))
         except Exception as e:  # непредвиденная ошибка не должна молча ронять поток
-            deliver(self._fail, f"Непредвиденная ошибка: {e}")
+            deliver(self._fail, str(unexpected_error(e)))
         else:
             deliver(self.on_success, profile)
 

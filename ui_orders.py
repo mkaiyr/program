@@ -1,7 +1,9 @@
-"""Окно «Заказы»: список заказов, состав выбранного заказа, смена статуса.
+"""Окно «Заказы»: список заказов, состав выбранного заказа, смена статуса, удаление.
 
 Какие заказы видны, решает RLS в Supabase; переход статуса проверяет
-функция set_order_status (sql/04_order_status.sql).
+функция set_order_status (sql/04_order_status.sql). «Удалить» отправляет выданный
+заказ в «Удалённые заказы» (delete_order, sql/10_order_deletion.sql): кассир — свои,
+администратор — любые; раздел «Удалённые заказы» — только у администратора.
 """
 
 import threading
@@ -9,7 +11,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 import ui_theme as theme
-from db import ORDER_STATUSES, ORDERS_LIMIT, ROLE_TRANSITIONS, AppError
+from db import ORDER_STATUSES, ORDERS_LIMIT, ROLE_TRANSITIONS, AppError, unexpected_error
 from ui_order import fmt_money
 
 
@@ -24,6 +26,7 @@ class OrdersWindow(tk.Toplevel):
         self.busy = False
         self.closed = False          # окно уничтожено: результаты фоновых запросов игнорируются
         self.reload_pending = False  # обновление, запрошенное во время другого запроса
+        self.deleted_window = None   # окно «Удалённые заказы» (администратор)
 
         self.title("Заказы")
         self.minsize(760, 520)
@@ -45,6 +48,11 @@ class OrdersWindow(tk.Toplevel):
         self.close_btn.pack(side="right")
         self.reload_btn = ttk.Button(top, text="Обновить", command=self.reload)
         self.reload_btn.pack(side="right", padx=6)
+        # Кнопка — только удобство: список удалённых сервер отдаёт только администратору
+        self.deleted_btn = None
+        if self.is_admin:
+            self.deleted_btn = ttk.Button(top, text="Удалённые заказы", command=self.open_deleted)
+            self.deleted_btn.pack(side="right")
 
         cols = ("id", "date", "cashier", "total", "status")
         self.tree = ttk.Treeview(root, columns=cols, show="headings", selectmode="browse", height=10)
@@ -69,6 +77,9 @@ class OrdersWindow(tk.Toplevel):
             self.force_btn = ttk.Button(actions, text="Готов принудительно", style="Danger.TButton",
                                         command=self.force_ready)
             self.force_btn.pack(side="left", padx=12)
+        # Только выданный заказ; права (свои — кассиру, любые — администратору) проверяет сервер
+        self.delete_btn = ttk.Button(actions, text="Удалить", command=self.delete_order)
+        self.delete_btn.pack(side="right")
 
         ttk.Label(root, text="Состав заказа", style="H2.TLabel").pack(anchor="w", pady=(4, 4))
         cols = ("name", "price", "qty", "sum")
@@ -105,7 +116,7 @@ class OrdersWindow(tk.Toplevel):
             except AppError as e:
                 deliver(on_err, e)
             except Exception as e:  # непредвиденная ошибка не должна молча ронять поток
-                deliver(on_err, AppError(f"Непредвиденная ошибка: {e}"))
+                deliver(on_err, unexpected_error(e))
             else:
                 deliver(on_ok, result)
 
@@ -125,8 +136,9 @@ class OrdersWindow(tk.Toplevel):
     def _set_busy(self, busy):
         self.busy = busy
         state = "disabled" if busy else "normal"
-        for btn in (self.reload_btn, self.close_btn):
-            btn.config(state=state)
+        for btn in (self.reload_btn, self.close_btn, self.deleted_btn):
+            if btn is not None:
+                btn.config(state=state)
         self._update_next_btn()
 
     def _show_status(self, text, color="black"):
@@ -193,6 +205,8 @@ class OrdersWindow(tk.Toplevel):
         if self.force_btn is not None:
             can_force = order is not None and order["status"] in ("accepted", "preparing") and not self.busy
             self.force_btn.config(state="normal" if can_force else "disabled")
+        can_delete = order is not None and order["status"] == "completed" and not self.busy
+        self.delete_btn.config(state="normal" if can_delete else "disabled")
 
     # ---------- Смена статуса ----------
 
@@ -234,6 +248,46 @@ class OrdersWindow(tk.Toplevel):
                   lambda r: self.reload(select_id=order_id, done_text=(
                       f"Заказ № {order_id}: «Готов» принудительно (станций отмечено: {r['stations_forced']}).")),
                   self._handle_error)
+
+    # ---------- Удаление ----------
+
+    def delete_order(self):
+        """Выданный заказ — в «Удалённые заказы». Восстановить его сможет администратор."""
+        if self.busy:
+            return
+        order = self.orders.get(self._selected_id())
+        if order is None or order["status"] != "completed":
+            return
+        if not messagebox.askyesno(
+                "Удалить заказ",
+                f"Удалить заказ № {order['id']} на сумму {fmt_money(order['total'])}?\n"
+                "Он пропадёт из истории и попадёт в «Удалённые заказы» — администратор сможет его "
+                "восстановить.", parent=self):
+            return
+        order_id = order["id"]
+        self._show_status("Удаление...", "gray")
+        self._run(lambda: self.db.delete_order(order_id),
+                  lambda r: self.reload(done_text=(f"Заказ № {order_id} перенесён в «Удалённые заказы»." if r["changed"]
+                                                   else f"Заказ № {order_id} уже был удалён.")),
+                  self._handle_error)
+
+    def open_deleted(self):
+        if self.busy or not self.is_admin:
+            return
+        if self.deleted_window is not None and self.deleted_window.winfo_exists():
+            self.deleted_window.deiconify()
+            self.deleted_window.lift()
+            self.deleted_window.reload()
+            return
+        from ui_deleted_orders import DeletedOrdersWindow
+        self.deleted_window = DeletedOrdersWindow(self, self.db, on_change=self.reload,
+                                                  on_auth_error=self._auth_error_from_child)
+
+    def _auth_error_from_child(self):
+        # Окно «Удалённые заказы» уже закрылось; сессия истекла — выход, как при своей ошибке
+        if not self.closed:
+            self.destroy()
+            self.on_auth_error()
 
     # ---------- Ошибки и закрытие ----------
 

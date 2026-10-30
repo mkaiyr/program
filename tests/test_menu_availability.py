@@ -124,6 +124,13 @@ class FakeDB:
         self.items[item_id]["is_available"] = available
         return {"id": item_id, "name": self.items[item_id]["name"], "is_available": available}
 
+    def load_station_menu(self, station):  # как Database до миграции 09: kitchen_menu, без предложений
+        return {"items": self.load_kitchen_menu(), "can_propose": False, "available": True}
+
+    def station_set_available(self, station, item_id, available):  # кухня — kitchen_set_available
+        assert station == "kitchen"
+        return self.kitchen_set_available(item_id, available)
+
     def load_station_orders(self, station):
         return []
 

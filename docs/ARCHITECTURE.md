@@ -27,10 +27,11 @@ Tkinter (main.py) ──► db.Database ──► supabase-py ──► Supabase
 | `ui_theme.py` | Цвета, шрифты, стили ttk, карточки, `ScrollFrame` |
 | `ui_login.py` | Вход по коду сотрудника и паролю, экранная клавиатура |
 | `ui_order.py` | Касса: каталог, поиск, корзина, оформление заказа |
-| `ui_orders.py` | Окно «Заказы»: список, состав, выдача, принудительная готовность (админ) |
-| `ui_admin.py` | Управление меню |
-| `ui_kitchen.py` | `KitchenFrame` (кухня) и `BarFrame` (бар): заказы станции, автообновление, звук |
-| `ui_kitchen_menu.py` | Вкладка «Меню» кухни: наличие блюд, фильтры |
+| `ui_orders.py` | Окно «Заказы»: список, состав, выдача, принудительная готовность (админ), «Удалить» выданный заказ |
+| `ui_deleted_orders.py` | Окно «Удалённые заказы» (админ): восстановление, удаление навсегда, журнал окончательных удалений |
+| `ui_admin.py` | Управление меню; «Подтвердить» / «Отклонить» позиции, предложенные станциями |
+| `ui_kitchen.py` | `KitchenFrame` (кухня) и `BarFrame` (бар): заказы станции, автообновление, звук, меню станции |
+| `ui_kitchen_menu.py` | Вкладка «Меню» кухни и бара: состояния позиций, наличие, фильтры; окно «Предложить позицию» |
 
 ## Роли и маршрутизация
 
@@ -39,10 +40,14 @@ Tkinter (main.py) ──► db.Database ──► supabase-py ──► Supabase
 
 | Роль | Экран | Источник заказов | Что меняет |
 |---|---|---|---|
-| `cashier` | `OrderFrame` + окно «Заказы» | таблицы `orders`/`order_items` (свои заказы, RLS) | создаёт заказ (`create_order`), выдаёт (`set_order_status → completed`) |
-| `admin` | `OrderFrame` + «Заказы» + «Управление меню» | все заказы (RLS) | меню (`admin_*`), выдача, `admin_force_order_ready` |
-| `kitchen` | `KitchenFrame` | `kitchen_orders()` — только кухонные позиции, без цен | `set_station_status(…, 'kitchen', …)`, наличие (`kitchen_set_menu_item_available`) |
-| `bar` | `BarFrame` | `bar_orders()` — только барные позиции, без цен | `set_station_status(…, 'bar', …)` |
+| `cashier` | `OrderFrame` + окно «Заказы» | таблицы `orders`/`order_items` (свои неудалённые заказы, RLS) | создаёт заказ (`create_order`), выдаёт (`set_order_status → completed`), удаляет свой выданный (`delete_order`) |
+| `admin` | `OrderFrame` + «Заказы» + «Управление меню» | все заказы (RLS) | меню (`admin_*`, в том числе решения `admin_approve_menu_item` / `admin_reject_menu_item`), выдача, `admin_force_order_ready` |
+| `kitchen` | `KitchenFrame` | `kitchen_orders()` — только кухонные позиции, без цен | `set_station_status(…, 'kitchen', …)`, наличие (`kitchen_set_menu_item_available`), предложение позиции (`station_add_menu_item`) |
+| `bar` | `BarFrame` | `bar_orders()` — только барные позиции, без цен | `set_station_status(…, 'bar', …)`, наличие (`station_set_menu_item_available`), предложение позиции (`station_add_menu_item`) |
+
+Меню станции читается функцией `station_menu()` (миграция 09; станцию сервер берёт из роли). Если
+её ещё нет (`PGRST202`), `Database.load_station_menu` возвращает прежний `kitchen_menu()` для кухни
+и «меню недоступно» для бара, а `load_all_menu` — чтение таблицы для администратора.
 
 Права окончательно проверяет сервер; скрытые кнопки в интерфейсе — только удобство.
 
@@ -90,6 +95,11 @@ _run(task, on_ok, on_err)
   вход (`sign_in`, тоже в фоне) ждёт окончания отзыва не дольше `SIGN_OUT_WAIT`: иначе отзыв
   со `scope=global`, пришедший после нового входа того же сотрудника, отозвал бы и новую сессию.
 - Экран входа доставляет ответ так же, через корневое окно, и игнорирует его после закрытия.
+- Ошибки: `AppError` с текстом для сотрудника и кодом (`network`, `auth`, `forbidden`, `invalid`,
+  `menu_changed`, `order_changed`). Текст ошибки сервера и непредвиденного исключения не
+  показывается (`db._api_error`, `db.unexpected_error`) — он пишется в журнал `logging`.
+- Касса при обновлении меню перечитывает свой профиль (`_check_still_allowed`): деактивация или
+  смена роли во время смены — ошибка `auth` и экран входа.
 
 ## Автообновление и звук (кухня, бар)
 

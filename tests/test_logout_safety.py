@@ -344,6 +344,10 @@ class FakeDB:
         return self._answer("load_kitchen_menu", [{"id": 1, "code": 1001, "name": "Суп", "category": "Еда",
                                                    "is_available": True}])
 
+    def load_station_menu(self, station):
+        items = [{"id": 1, "code": 1001, "name": "Суп", "category": "Еда", "is_available": True, "status": "on_sale"}]
+        return self._answer("load_station_menu", {"items": items, "can_propose": True, "available": True})
+
 
 AUTH_ERROR = dbm.AppError("Сессия истекла. Войдите снова.", "auth")
 

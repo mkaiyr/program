@@ -27,6 +27,8 @@ DISABLED_FG = "#9CA3AF"
 
 # Цвета статусов заказа (бейджи, текст в таблицах)
 STATUS_COLORS = {"accepted": ACCENT, "preparing": WARNING, "ready": SUCCESS, "completed": MUTED}
+# Цвета состояний позиции меню (db.MENU_STATUSES)
+MENU_STATUS_COLORS = {"on_sale": SUCCESS, "out_of_stock": DANGER, "pending": WARNING, "rejected": MUTED}
 
 # Цвета строки состояния: в коде экранов используются простые имена
 MESSAGE_COLORS = {"gray": MUTED, "green": SUCCESS, "red": DANGER, "orange": WARNING, "black": TEXT}

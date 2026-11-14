@@ -304,8 +304,17 @@ class FakeStationDB:
              "items": [{"code": 2002, "item_name": "Мохито б/а", "quantity": 1}]},
         ]
         self.loaded = []
+        self.menu_loaded = []
         self.calls = []
         self.fail = None
+        self.menu = {
+            21: dict(id=21, code=2001, name="Латте", category="Кофе", is_available=True, status="on_sale"),
+            22: dict(id=22, code=2002, name="Мохито б/а", category="Коктейли", is_available=False,
+                     status="out_of_stock"),
+            23: dict(id=23, code=2003, name="Раф лавандовый", category="Кофе", is_available=False, status="pending"),
+            24: dict(id=24, code=2004, name="Глинтвейн", category="Коктейли", is_available=False, status="rejected",
+                     reject_reason="Нет лицензии"),
+        }
 
     def load_station_orders(self, station):
         self.loaded.append(station)
@@ -321,6 +330,24 @@ class FakeStationDB:
 
     def load_kitchen_menu(self):
         raise AssertionError("экран бара не должен вызывать kitchen_menu")
+
+    def load_station_menu(self, station):
+        """Меню бара после миграции 09: позиции во всех состояниях, только бар."""
+        self.menu_loaded.append(station)
+        return {"items": [dict(item) for item in self.menu.values()], "can_propose": True, "available": True}
+
+    def station_set_available(self, station, item_id, available):
+        self.calls.append(("available", station, item_id, available))
+        self.menu[item_id].update(is_available=available, status="on_sale" if available else "out_of_stock")
+        return dict(self.menu[item_id])
+
+    def propose_menu_item(self, name, category, price_text, code_text=""):
+        self.calls.append(("propose", name, category, price_text, code_text))
+        if self.fail:
+            error, self.fail = self.fail, None
+            raise error
+        self.menu[99] = dict(id=99, code=2099, name=name, category=category, is_available=False, status="pending")
+        return dict(self.menu[99])
 
 
 class FakeAdminDB:
@@ -373,14 +400,74 @@ class UiTest(unittest.TestCase):
         db = FakeStationDB()
         frame = self.bar(db)
         self.assertEqual(db.loaded, ["bar"])
-        self.assertEqual(len(frame.tabs.tabs()), 1)  # только «Заказы», без меню кухни
-        self.assertIsNone(frame.menu_panel)
+        self.assertEqual(len(frame.tabs.tabs()), 2)  # «Заказы» и меню бара (миграция 09)
+        self.assertEqual(db.menu_loaded, [])         # меню — только при открытии вкладки
         self.assertEqual(frame.menu_buttons, {})
         self.assertEqual(sorted(frame.badges), [7, 8])
         texts = [str(w["text"]) for w in _all_widgets(frame.orders_area.inner) if "text" in w.keys()]
         self.assertIn("2001", texts)
         self.assertIn("Латте", texts)
         self.assertFalse(any("₸" in t for t in texts), texts)
+
+    def bar_menu(self, db):
+        frame = self.bar(db)
+        frame.tabs.select(1)
+        frame.reload_menu()  # в скрытом окне Tk не присылает <<NotebookTabChanged>>
+        self.pump()
+        return frame
+
+    def test_bar_menu_states(self):
+        """Меню бара: кнопка наличия только у подтверждённых; ждущие и отклонённые — без неё."""
+        db = FakeStationDB()
+        frame = self.bar_menu(db)
+        self.assertEqual(set(db.menu_loaded), {"bar"})  # только меню бара; kitchen_menu не вызывался
+        self.assertEqual(sorted(frame.menu_buttons), [21, 22])
+        texts = [str(w["text"]) for w in _all_widgets(frame.menu_panel.list.inner) if "text" in w.keys()]
+        for text in ("●  Ждёт решения", "●  Отклонена", "●  В продаже", "●  Нет в наличии"):
+            self.assertIn(text, texts)
+        self.assertTrue(any("Нет лицензии" in t for t in texts), texts)  # причина отклонения видна
+        self.assertFalse(any("₸" in t for t in texts), texts)
+        frame.toggle_available(23)                 # ждущая: наличие не меняется даже прямым вызовом
+        frame.toggle_available(24)
+        self.pump()
+        self.assertEqual(db.calls, [])
+        frame.menu_buttons[22].invoke()            # «Вернуть в продажу»
+        self.pump()
+        self.assertEqual(db.calls, [("available", "bar", 22, True)])
+        frame.menu_panel.availability_var.set("Ждут решения")
+        texts = [str(w["text"]) for w in _all_widgets(frame.menu_panel.list.inner) if "text" in w.keys()]
+        self.assertIn("Раф лавандовый", texts)
+        self.assertNotIn("Латте", texts)
+        self.assertEqual(frame.menu_buttons, {})
+
+    def test_bar_propose_item(self):
+        db = FakeStationDB()
+        frame = self.bar_menu(db)
+        self.assertEqual(str(frame.menu_panel.propose_btn["state"]), "normal")
+        frame.propose_item()
+        dialog = [w for w in frame.winfo_children() if isinstance(w, ui_kitchen.ProposeDialog)][-1]
+        dialog.name_entry.insert(0, "Матча")
+        dialog.category_box.insert(0, "Кофе")
+        dialog.price_entry.insert(0, "abc")         # ошибка ввода — запрос не уходит, окно остаётся
+        dialog.submit()
+        self.assertTrue(dialog.winfo_exists())
+        self.assertEqual(db.calls, [])
+        dialog.price_entry.delete(0, "end")
+        dialog.price_entry.insert(0, "1500")
+        dialog.submit()
+        self.pump()
+        self.assertEqual(db.calls, [("propose", "Матча", "Кофе", "1500", "")])
+        self.assertIn("ждёт решения", frame.status["text"])
+        self.assertIn(99, frame.menu)
+
+    def test_bar_propose_refused_keeps_input(self):
+        db = FakeStationDB()
+        frame = self.bar_menu(db)
+        db.fail = dbm.AppError(dbm.RPC_ERRORS["NAME_TAKEN"][1], "invalid")
+        frame._send_proposal({"name": "Латте", "category": "Кофе", "price": "900", "code": ""})
+        self.pump()
+        self.assertEqual(frame.propose_draft["name"], "Латте")  # окно откроется с введённым
+        self.assertIn(("showwarning", "Не сохранено"), self.shown)
 
     def test_bar_advances_only_bar_part(self):
         db = FakeStationDB()

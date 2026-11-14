@@ -42,6 +42,23 @@ begin
 end;
 $$;
 
+-- Нет старых перегрузок меню (02/07) и определений без кода (02/06): иначе PostgREST
+-- не выберет функцию, а кухня и админ не увидят код. Исправляет повторный запуск 08.
+do $$
+begin
+  assert to_regprocedure('public.admin_add_menu_item(text, text, numeric)') is null
+     and to_regprocedure('public.admin_add_menu_item(text, text, numeric, integer)') is null
+     and to_regprocedure('public.admin_update_menu_item(bigint, text, text, numeric)') is null,
+    'FAIL: остались старые перегрузки admin_add_menu_item / admin_update_menu_item';
+  assert (select count(*) from pg_proc where pronamespace = 'public'::regnamespace
+           and proname in ('admin_add_menu_item', 'admin_update_menu_item')) = 2,
+    'FAIL: ожидается ровно по одной версии admin_add_menu_item и admin_update_menu_item';
+  assert pg_get_functiondef('public.kitchen_menu()'::regprocedure) ~ '''code'', m\.code'
+     and pg_get_functiondef('public.admin_set_menu_item_available(bigint, boolean)'::regprocedure) ~ '''code'', v_row\.code',
+    'FAIL: kitchen_menu или admin_set_menu_item_available без кода позиции (запускалась старая 02 или 06?)';
+end;
+$$;
+
 -- Метаданные функций: публичные RPC — SECURITY DEFINER с пустым search_path,
 -- внутренние — без SECURITY DEFINER, закрыты для клиентов; владелец — владелец таблиц
 do $$

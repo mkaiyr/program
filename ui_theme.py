@@ -22,11 +22,21 @@ SUCCESS_DARK = "#15803D"
 WARNING = "#D97706"
 DANGER = "#DC2626"
 DANGER_DARK = "#B91C1C"
+# Боковая панель (графитово-синяя) и размеры
+SIDEBAR = "#16213A"
+SIDEBAR_HOVER = "#223153"
+SIDEBAR_ACTIVE = "#2563EB"
+SIDEBAR_TEXT = "#CBD5E1"
+SIDEBAR_MUTED = "#8492A8"
+PAD = 16              # единый внешний отступ экранов
+GAP = 12              # отступ между блоками
 DISABLED_BG = "#E5E7EB"
 DISABLED_FG = "#9CA3AF"
 
 # Цвета статусов заказа (бейджи, текст в таблицах)
 STATUS_COLORS = {"accepted": ACCENT, "preparing": WARNING, "ready": SUCCESS, "completed": MUTED}
+# Цвета состояний позиции меню (db.MENU_STATUSES)
+MENU_STATUS_COLORS = {"on_sale": SUCCESS, "out_of_stock": DANGER, "pending": WARNING, "rejected": MUTED}
 
 # Цвета строки состояния: в коде экранов используются простые имена
 MESSAGE_COLORS = {"gray": MUTED, "green": SUCCESS, "red": DANGER, "orange": WARNING, "black": TEXT}
@@ -42,7 +52,9 @@ FONT_H2 = ("", 16, "bold")
 FONT_BODY = ("", 13)
 FONT_BOLD = ("", 13, "bold")
 FONT_BIG = ("", 16, "bold")
-FONT_TOTAL = ("", 20, "bold")
+FONT_TOTAL = ("", 26, "bold")   # итог заказа — крупно
+FONT_STAT = ("", 24, "bold")    # значение карточки показателя
+FONT_SMALL = ("", 11)
 
 
 def apply(root):
@@ -70,6 +82,9 @@ def apply(root):
     style.configure("Status.TLabel", foreground=MUTED)
     style.configure("Card.TLabel", background=SURFACE)
     style.configure("CardH2.TLabel", background=SURFACE, font=FONT_H2)
+    style.configure("CardH1.TLabel", background=SURFACE, font=FONT_H1)
+    style.configure("CardWarn.TLabel", background=SURFACE, foreground=WARNING, font=FONT_BOLD)
+    style.configure("CardDanger.TLabel", background=SURFACE, foreground=DANGER, font=FONT_BOLD)
     style.configure("CardMuted.TLabel", background=SURFACE, foreground=MUTED)
     style.configure("CardBold.TLabel", background=SURFACE, font=FONT_BOLD)
     style.configure("Total.TLabel", background=SURFACE, font=FONT_TOTAL)
@@ -91,10 +106,12 @@ def apply(root):
                   foreground=[("disabled", DISABLED_FG)], bordercolor=[("disabled", DISABLED_BG)])
         style.configure(f"Big.{name}.TButton", font=FONT_BIG, padding=(18, 14))
     style.configure("Big.TButton", font=FONT_BIG, padding=(18, 14))
+    # Кнопки корзины: крупные для касания, но компактнее «Big»
+    style.configure("Touch.TButton", font=FONT_BOLD, padding=(14, 12))
     # Клавиша экранной клавиатуры на входе: крупный шрифт, умеренная высота
     style.configure("Key.TButton", font=FONT_BIG, padding=(10, 9))
     # Плитка блюда в каталоге кассы
-    style.configure("Tile.TButton", font=FONT_BOLD, padding=(10, 16), justify="center", wraplength=150)
+    style.configure("Tile.TButton", font=FONT_BOLD, padding=(10, 22), justify="center", wraplength=150)
     style.map("Tile.TButton", background=[("pressed", ACCENT_LIGHT), ("active", "#EFF6FF")])
     # Фильтр категорий
     style.configure("Chip.Toolbutton", padding=(14, 6), background=SURFACE, font=FONT_BODY)
@@ -110,6 +127,9 @@ def apply(root):
     style.configure("Treeview", background=SURFACE, fieldbackground=SURFACE, foreground=TEXT,
                     rowheight=32, bordercolor=BORDER)
     style.map("Treeview", background=[("selected", ACCENT_LIGHT)], foreground=[("selected", TEXT)])
+    # Корзина: крупнее строки для сенсорного экрана
+    style.configure("Cart.Treeview", rowheight=42, font=FONT_BODY)
+    style.map("Cart.Treeview", background=[("selected", ACCENT_LIGHT)], foreground=[("selected", TEXT)])
     style.configure("Treeview.Heading", background=BG, foreground=MUTED, relief="flat", padding=(8, 6))
     style.map("Treeview.Heading", background=[("active", BORDER)])
 
@@ -117,6 +137,24 @@ def apply(root):
     style.configure("TNotebook", background=BG, borderwidth=0)
     style.configure("TNotebook.Tab", padding=(20, 10), font=FONT_BOLD, background=BG, foreground=MUTED)
     style.map("TNotebook.Tab", background=[("selected", SURFACE)], foreground=[("selected", TEXT)])
+
+    # Боковая панель
+    style.configure("Side.TFrame", background=SIDEBAR)
+    style.configure("Side.TLabel", background=SIDEBAR, foreground="white", font=FONT_H2)
+    style.configure("SideMuted.TLabel", background=SIDEBAR, foreground=SIDEBAR_MUTED, font=FONT_SMALL)
+    style.configure("Nav.TButton", background=SIDEBAR, foreground=SIDEBAR_TEXT, font=FONT_BODY, anchor="w",
+                    padding=(18, 12), relief="flat", bordercolor=SIDEBAR)
+    style.map("Nav.TButton", background=[("active", SIDEBAR_HOVER)], bordercolor=[("active", SIDEBAR_HOVER)])
+    style.configure("NavActive.TButton", background=SIDEBAR_ACTIVE, foreground="white", font=FONT_BOLD,
+                    anchor="w", padding=(18, 12), relief="flat", bordercolor=SIDEBAR_ACTIVE)
+    style.map("NavActive.TButton", background=[("active", ACCENT_DARK)], bordercolor=[("active", ACCENT_DARK)])
+    style.configure("Logout.TButton", background=SIDEBAR_HOVER, foreground="white", padding=(12, 9),
+                    bordercolor=SIDEBAR_HOVER)
+    style.map("Logout.TButton", background=[("active", DANGER)])
+    # Показатели и подписи таблиц
+    style.configure("Stat.TLabel", background=SURFACE, font=FONT_STAT)
+    style.configure("Delta.TLabel", background=SURFACE, foreground=MUTED, font=FONT_SMALL)
+    style.configure("Link.TButton", background=BG, foreground=ACCENT, padding=(8, 4), relief="flat")
 
     style.configure("TLabelframe", background=BG, bordercolor=BORDER)
     style.configure("TLabelframe.Label", background=BG, foreground=MUTED, font=FONT_BOLD)
@@ -175,3 +213,35 @@ class ScrollFrame(ttk.Frame):
             child.destroy()
         if not keep_position:
             self.canvas.yview_moveto(0)
+
+
+def stat_card(master, title, value="—", hint=""):
+    """Карточка показателя: подпись, крупное значение, пояснение. Возвращает (card, value_label, hint_label)."""
+    box = card(master)
+    ttk.Label(box, text=title, style="CardMuted.TLabel").pack(anchor="w")
+    value_label = ttk.Label(box, text=value, style="Stat.TLabel")
+    value_label.pack(anchor="w", pady=(2, 0))
+    hint_label = ttk.Label(box, text=hint, style="Delta.TLabel")
+    hint_label.pack(anchor="w")
+    return box, value_label, hint_label
+
+
+def make_table(master, columns, height=8, tags=None):
+    """Таблица ttk.Treeview с вертикальной прокруткой.
+
+    columns: [(id, заголовок, ширина, выравнивание)]. Возвращает (frame, tree).
+    tags: {имя: цвет текста} — для раскраски строк.
+    """
+    frame = ttk.Frame(master)
+    tree = ttk.Treeview(frame, columns=[c[0] for c in columns], show="headings", selectmode="browse",
+                        height=height)
+    for col, title, width, anchor in columns:
+        tree.heading(col, text=title)
+        tree.column(col, width=width, anchor=anchor, minwidth=40)
+    bar = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=bar.set)
+    tree.pack(side="left", fill="both", expand=True)
+    bar.pack(side="right", fill="y")
+    for name, color in (tags or {}).items():
+        tree.tag_configure(name, foreground=color)
+    return frame, tree

@@ -22,6 +22,7 @@ from postgrest.exceptions import APIError  # noqa: E402
 import db as dbm  # noqa: E402
 import ui_kitchen  # noqa: E402
 import ui_order  # noqa: E402
+from money import order_totals  # noqa: E402
 import ui_theme  # noqa: E402
 from _tk import get_root  # noqa: E402
 
@@ -124,18 +125,26 @@ class FakeDB:
         self.items[item_id]["is_available"] = available
         return {"id": item_id, "name": self.items[item_id]["name"], "is_available": available}
 
+    def load_station_menu(self, station):  # как Database до миграции 09: kitchen_menu, без предложений
+        return {"items": self.load_kitchen_menu(), "can_propose": False, "available": True}
+
+    def station_set_available(self, station, item_id, available):  # кухня — kitchen_set_available
+        assert station == "kitchen"
+        return self.kitchen_set_available(item_id, available)
+
     def load_station_orders(self, station):
         return []
 
-    def create_order(self, request_id, items):
+    def create_order(self, request_id, items, expected_total=None):
         self._maybe_fail()
         for item_id, _qty, price in items:
             item = self.items[item_id]
             if not item["is_available"] or item["price"] != price:
                 raise dbm.AppError("Меню изменилось: " + item["name"], "menu_changed")
         self.orders.append(items)
-        total = sum(price * qty for _i, qty, price in items)
-        return {"order_id": len(self.orders), "total": total, "duplicate": False}
+        subtotal, service, total = order_totals(sum(price * qty for _i, qty, price in items))
+        return {"order_id": len(self.orders), "subtotal": subtotal, "service_amount": service, "total": total,
+                "duplicate": False}
 
 
 class UiTest(unittest.TestCase):
@@ -267,12 +276,12 @@ class UiTest(unittest.TestCase):
         frame.tiles[1].invoke()
         frame.tiles[2].invoke()
         self.assertEqual(frame.cart[1]["qty"], 2)
-        self.assertEqual(frame.total_label["text"], ui_order.fmt_money(Decimal("2900.00")))
+        self.assertEqual(frame.total_label["text"], "3 190 ₸")  # 2900 + 10%
         frame.cart_tree.selection_set("1")
         frame.change_qty(-1)
         frame.change_qty(-1)  # 0 шт. — строка удаляется
         self.assertNotIn(1, frame.cart)
-        self.assertEqual(frame.total_label["text"], ui_order.fmt_money(Decimal("700.00")))
+        self.assertEqual(frame.total_label["text"], "770 ₸")  # 700 + 10%
 
     def test_category_filter(self):
         frame = self.cashier()

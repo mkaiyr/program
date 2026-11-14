@@ -16,7 +16,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import db as dbm  # noqa: E402
+from db import AppError  # noqa: E402
 import ui_order  # noqa: E402
+from money import order_totals  # noqa: E402
 from _tk import get_root  # noqa: E402
 
 MENU = [{"id": 1, "code": 1001, "name": "Капучино", "category": "Напитки", "price": Decimal("1100.00")},
@@ -38,16 +40,21 @@ class FakeDB:
     def __init__(self):
         self.orders = []          # (request_id, items) каждого вызова create_order
         self.order_fail = None
+        self.expected_totals = []  # итог, который касса передала серверу
 
     def load_menu(self):
         return [dict(item) for item in MENU]
 
-    def create_order(self, request_id, items):
+    def create_order(self, request_id, items, expected_total=None):
         self.orders.append((request_id, list(items)))
         if self.order_fail:
             raise self.order_fail
-        total = sum(price * qty for _id, qty, price in items)
-        return {"order_id": len(self.orders), "total": total, "duplicate": False}
+        subtotal, service, total = order_totals(sum(price * qty for _id, qty, price in items))
+        self.expected_totals.append(expected_total)
+        if expected_total is not None and expected_total != total:
+            raise AppError("Итоговая сумма на сервере отличается от показанной", "invalid")
+        return {"order_id": len(self.orders), "subtotal": subtotal, "service_amount": service, "total": total,
+                "duplicate": False}
 
 
 class CartTest(unittest.TestCase):
@@ -100,12 +107,16 @@ class CartTest(unittest.TestCase):
         f.add_item(1)
         f.add_item(2)
         self.assertEqual(self.qty(), {1: 2, 2: 1})
-        self.assertEqual(self.total_text(), ui_order.fmt_money(Decimal("2900.50")))
+        # 2×1100 + 700.50 = 2900.50; надбавка 10% = 290.05 -> 290 (до целого тенге)
+        self.assertEqual(f.subtotal_label["text"], "2 900.50 ₸")
+        self.assertEqual(f.service_label["text"], "290 ₸")
+        self.assertEqual(self.total_text(), "3 190.50 ₸")
         self.select(1)
         f.change_qty(-1)
         f.change_qty(-1)                 # 0 шт. — строка удаляется
         self.assertEqual(self.qty(), {2: 1})
-        self.assertEqual(self.total_text(), ui_order.fmt_money(Decimal("700.50")))
+        self.assertEqual(f.service_label["text"], "70 ₸")      # 70.05 -> 70
+        self.assertEqual(self.total_text(), "770.50 ₸")
         self.select(2)
         f.remove_item()
         self.assertEqual(self.qty(), {})

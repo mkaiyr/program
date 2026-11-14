@@ -20,6 +20,8 @@
 | `menu_items` | `id` (PK), `code`, `name`, `category`, `price`, `is_available`, `station`; после 09 — `approved_at`, `rejected_at` | `price > 0`; `code` `NOT NULL`, 1…99999999, неизменяем (триггер); `station` ∈ `kitchen`, `bar`. До 09: `name` и `code` уникальны во всей таблице. После 09: уникальны среди неотклонённых (частичные уникальные индексы `menu_items_name_key`, `menu_items_code_key` `WHERE rejected_at IS NULL`); `CHECK menu_items_approved_before_sale` и `menu_items_single_decision` — ожидающая или отклонённая позиция не может быть в продаже |
 | `menu_item_reviews` (09) | `item_id` → `menu_items.id`, `submitted_by`, `submitted_at`, `submitted` (снимок полей), `decision`, `decided_by`, `decided_at`, `reject_reason` | журнал предложений станций и решений администратора; RLS включён, политик и прав для клиентов нет — читается только через `admin_menu_reviews()` |
 | `orders` | `id`, `cashier_id`, `client_request_id`, `total`, `status`, `created_at`; после 10 — `deleted_at`, `deleted_by` | `client_request_id` уникален (защита от повторной отправки); `status` ∈ `accepted`, `preparing`, `ready`, `completed`; после 10 `orders_deleted_only_completed` — удалённым может быть только выданный заказ |
+| `orders` (11, 12) | + `subtotal`, `service_percent`, `service_amount`, `voided_at`, `voided_by`, `void_reason`, `shift_id` | `orders_total_parts`: `total = subtotal + service_amount`; `orders_void_consistent`: отметка и причина (3–200 символов) только вместе; у старых заказов `subtotal = total`, надбавка 0 |
+| `cash_shifts`, `cash_movements` (12) | смена: кассир, открытие/закрытие, начальная и фактическая сумма, снимок итогов при закрытии; операции: внесение/изъятие, сумма, комментарий | не больше одной открытой смены на сотрудника (частичный уникальный индекс); RLS включён, политик и прав для клиентов нет — только функции `shift_*`; заказ привязывается к открытой смене триггером |
 | `order_purge_log` (10) | `order_id`, `total`, `cashier_id`, `cashier_name`, `order_created_at`, `deleted_at`, `deleted_by`, `purged_by`, `purged_by_name`, `purged_at` | журнал окончательных удалений **без состава**; `order_id` уникален; RLS включён, политик и прав для клиентов нет — читается только через `admin_purge_log()`; триггеры запрещают `UPDATE`, `DELETE`, `TRUNCATE`; внешних ключей нет (история не меняется при удалении сотрудника) |
 | `order_items` | `order_id`, `menu_item_id` → `menu_items.id`, `item_name`, `unit_price`, `quantity`, `line_total`, `station`, `item_code` | снимки названия, цены, станции и кода на момент продажи; `menu_item_id` — ссылка на `id`, не на код |
 | `order_stations` | `order_id`, `station`, `status` | PK (`order_id`, `station`); `status` ∈ `accepted`, `preparing`, `ready`; RLS включён, политик и прав для клиентов нет |
@@ -95,6 +97,11 @@
 | `admin_deleted_orders()`, `admin_restore_order(id)` (10) | администратор | удалённые заказы с составом; восстановление (повтор — без изменений) |
 | `admin_purge_order(id)`, `admin_purge_log()` (10) | администратор | окончательное удаление удалённого выданного заказа с записью в журнал; журнал |
 | `admin_add_menu_item`, `admin_update_menu_item`, `admin_set_menu_item_available` | администратор | меню; код автоматически или вручную при создании; после 09 дубли считаются среди неотклонённых, отклонённую позицию изменить нельзя |
+| `place_order(request_id, items, expected_total)` (11) | кассир, администратор | оформление с надбавкой 10% (до целого тенге, половина вверх); `TOTAL_MISMATCH`, если ожидаемый итог не совпал; `create_order` теперь вызывает её |
+| `void_order(id, reason)` (11) | кассир — свои, администратор — любые | аннулирование с причиной; заказ и состав сохраняются, в выручку не входит, пропадает с экранов кухни и бара |
+| `shift_current()`, `shift_open(amount)`, `shift_cash_move(kind, amount, note)`, `shift_close(actual)`, `shift_history(limit)` (12) | кассир, администратор | кассовые смены: ожидается = начало + выручка (без аннулированных) + внесения − изъятия; история (кассир — свои, администратор — все) |
+| `admin_staff_list()`, `admin_create_staff(...)`, `admin_update_staff(...)`, `admin_set_staff_password(id, password)` (13) | администратор | сотрудники: создание пары `auth.users` + `profiles`, роль, код, активность, пароль; нельзя отключить или понизить себя и остаться без администратора |
+| `admin_report(from, to)`, `admin_rename_category(old, new)` (14) | администратор | сводка за период (до 366 дней; цены из заказов); переименование и объединение категорий меню |
 | `is_active_staff/admin/kitchen/bar()` | `authenticated` | проверки роли текущего пользователя |
 | `_next_menu_item_code`, `_menu_item_code_immutable`, `_station_orders`, `_refresh_order_status`, `_check_menu_item_input`, `_staff_station`, `_menu_item_status`, `_order_purge_log_readonly` | только из других функций | внутренние; `EXECUTE` отозван у клиентов |
 
@@ -115,9 +122,13 @@
 | `08_bar_stations.sql` | роль `bar`, станции, снимки `station`/`item_code`, новые правила статусов |
 | `09_station_menu.sql` | меню кухни и бара, решения администратора по новым позициям, журнал `menu_item_reviews`, уникальность названия и кода среди неотклонённых |
 | `10_order_deletion.sql` | удаление выданных заказов: «Удалённые заказы», восстановление, окончательное удаление, журнал `order_purge_log` |
+| `11_service_charge_void.sql` | надбавка 10% (`subtotal`, `service_percent`, `service_amount`), `place_order`, аннулирование `void_order`, экраны станций без аннулированных |
+| `12_cash_shifts.sql` | кассовые смены: таблицы, `shift_*`, привязка заказов к открытой смене |
+| `13_staff_management.sql` | управление сотрудниками из приложения (запись в `auth.users` — см. предупреждение в файле) |
+| `14_reports_categories.sql` | отчёт `admin_report`, переименование категорий |
 | `seed/demo_menu.sql` | **не миграция**: 5 тестовых позиций меню для нового или тестового проекта |
 
-Применять строго по порядку 01 → 10, каждую один раз и целиком (SQL Editor → New query → Run).
+Применять строго по порядку 01 → 14, каждую один раз и целиком (SQL Editor → New query → Run).
 Текущая версия приложения работает и без 09 (новые функции станций будут использоваться
 в следующей версии); 09 закрывает изменение барных позиций кухней даже для текущей версии.
 Миграции данные меню не добавляют: тестовое меню — отдельный файл `sql/seed/demo_menu.sql`
@@ -126,7 +137,7 @@
 ### Первая установка (новый проект Supabase)
 
 1. Миграции `sql/01_schema.sql` … `sql/08_bar_stations.sql` по порядку, каждая целиком, затем
-   `sql/09_station_menu.sql` и `sql/10_order_deletion.sql`.
+   `sql/09_station_menu.sql`, `sql/10_order_deletion.sql`, затем `sql/11…14` (надбавка и аннулирование, смены, сотрудники, отчёты).
 2. Пользователи: Authentication → Users → Add user (служебные email, например `1001@bistro.local`),
    затем профили и коды сотрудников командами из конца файлов: кассир — 01, администратор — 02,
    код — 03, повар — 05, бармен — 08. SQL-проверкам нужны как минимум активные `admin` и `cashier`.
@@ -135,7 +146,7 @@
    - **рабочий проект** — позиции вводит администратор в приложении («Управление меню»), seed не запускать.
 4. Ручной шаг из конца 08: перевести напитки на станцию `bar`.
 5. Только тестовый проект: `sql/tests/07_menu_codes_checks.sql`, `sql/tests/08_bar_stations_checks.sql`,
-   `sql/tests/09_station_menu_checks.sql` и `sql/tests/10_order_deletion_checks.sql` (нужны шаги 2 и 3; `05_kitchen_checks.sql` после 08
+   `sql/tests/09_station_menu_checks.sql`, `sql/tests/10_order_deletion_checks.sql` и `sql/tests/11…14_*_checks.sql` (нужны шаги 2 и 3; `05_kitchen_checks.sql` после 08
    останавливается — так и задумано).
 6. Приложение: `config.ini` с URL проекта и публичным ключом (см. README).
 
@@ -167,6 +178,11 @@
 | 08 | да; **после 09 — затем снова 09** (см. ниже) | — | данные не меняет; восстанавливает свои определения функций, в том числе `admin_add_menu_item` и `admin_update_menu_item` без учёта отклонённых позиций |
 | 09 | да | нет 01–08; `approved_at`/`rejected_at` не `timestamptz`; внешние ключи на `menu_items.name`/`code`; индексы `menu_items_name_key`/`menu_items_code_key` не частичные | статусы позиций не меняются: подтверждение существующих позиций — только при первом применении; значение по умолчанию `approved_at` восстанавливается при каждом запуске |
 | 10 | да | нет 01–09 или статуса `completed` в `orders_status_check` | данные не меняет; политики и функции 10 — те же тексты. Повторный запуск 08 или 09 миграцию 10 не откатывает: 10 не переопределяет их функции, а их политики заказов они не трогают |
+
+| 11 | да | нет 01–10 (`orders.deleted_at`, `order_stations`, `is_active_admin`, `_station_orders`, `create_order`) | данные не меняет: подытог заполняется только у строк без него. **После повторного запуска 08 — снова 09 и 11**: 08 возвращает `create_order` и `_station_orders` без надбавки и без фильтра аннулированных (проверено локально 2026-11-11) |
+| 12 | да | нет 11 | данные не меняет |
+| 13 | да | нет 12, `profiles.employee_code`, роли `bar`, `pgcrypto` | данные не меняет |
+| 14 | да | нет 12, 13 | данные не меняет |
 
 **Повторный запуск 08 после 09.** 08 пересоздаёт `admin_add_menu_item` и `admin_update_menu_item`
 своими текстами: отклонённые позиции снова занимают название и код, а отклонённую позицию снова
@@ -205,6 +221,72 @@
 
 **Совместимость приложения:** текущая версия приложения требует 07 и 08. Устанавливать её на все
 рабочие места одновременно с миграциями: после 08 кухня со старой версией не сможет менять статусы.
+
+## Миграции 11–14: подробности
+
+> **Применение на Supabase.** Миграции 11–14 выполнены только на локальном PostgreSQL 17 с эмуляцией Supabase. На целевом проекте их
+> нужно применить и проверить отдельно (`sql/tests/11…14_*_checks.sql` — на тестовом проекте), сначала тестовый проект, на рабочем —
+> после резервной копии и подтверждения владельца. Локальный прогон не доказывает поведение GoTrue, PostgREST и ролей Supabase.
+
+**Порядок и зависимости:** 11 ← 01–10; 12 ← 11; 13 ← 12 (и `profiles.employee_code`, роль `bar`, расширение `pgcrypto`); 14 ← 12, 13.
+Каждая — одна транзакция, предусловия проверяются до изменений (`ОСТАНОВЛЕНО: … не найдено: …`), повторный запуск безопасен.
+
+**Права.** Все клиентские функции — `SECURITY DEFINER`, `search_path = ''`, `EXECUTE` отозван у `PUBLIC` и `anon`, выдан `authenticated`;
+`anon` из функций 11–14 не может вызвать ничего. Внутренние функции (`_shift_actor`, `_shift_json`, `_check_cash_amount`,
+`_orders_attach_shift`, `_staff_admin_only`, `_staff_check_fields`) закрыты для клиентов. Таблицы `cash_shifts` и `cash_movements` —
+RLS включён, политик и прав нет. Новые столбцы `orders` читаются существующими политиками `orders_select_own` / `orders_select_admin`
+(аннулированные заказы в них **видны**; скрыты только удалённые из миграции 10).
+
+| Функция | Роли | Поведение (кратко) | Коды ошибок |
+|---|---|---|---|
+| `place_order(uuid, jsonb, numeric)` | кассир, администратор | подытог по ценам меню; надбавка `round(подытог × 10 / 100, 0)`; итог = подытог + надбавка; сверка с `p_expected_total`; повторный `request_id` возвращает прежний заказ | как у `create_order`, `TOTAL_MISMATCH` |
+| `create_order(uuid, jsonb)` | кассир, администратор | вызывает `place_order(…, null)` | — |
+| `void_order(bigint, text)` | кассир — свои, администратор — любые | отметка `voided_at/by`, причина 3–200 символов; повтор — `changed = false`; удалённый заказ — `ORDER_NOT_FOUND` | `INVALID_REASON`, `ORDER_NOT_FOUND`, `NOT_ALLOWED` |
+| `shift_current()` | кассир, администратор | открытая смена или `null` | — |
+| `shift_open(numeric)` | кассир, администратор | открытие; сумма ≥ 0, до 2 знаков | `INVALID_AMOUNT`, `SHIFT_ALREADY_OPEN` |
+| `shift_cash_move(text, numeric, text)` | кассир, администратор | внесение/изъятие; изъятие не больше ожидаемой суммы | `INVALID_KIND`, `INVALID_AMOUNT`, `INVALID_NOTE`, `NO_OPEN_SHIFT`, `INSUFFICIENT_CASH` |
+| `shift_close(numeric)` | кассир, администратор | закрытие, снимок итогов, разница = факт − ожидание | `INVALID_AMOUNT`, `NO_OPEN_SHIFT` |
+| `shift_history(integer)` | кассир — свои, администратор — все | до 500 смен, новые сверху | — |
+| `admin_staff_list()` | администратор | все профили | `ADMIN_REQUIRED` |
+| `admin_create_staff(text, text, text, text)` | администратор | `auth.users` + `auth.identities` + `profiles`; email `<uuid>@bistro.local`; bcrypt | `INVALID_NAME`, `INVALID_ROLE`, `INVALID_EMPLOYEE_CODE`, `WEAK_PASSWORD`, `EMPLOYEE_CODE_TAKEN` |
+| `admin_update_staff(uuid, text, text, text, boolean)` | администратор | имя, роль, код, активность | перечисленные выше, `STAFF_NOT_FOUND`, `SELF_LOCKOUT`, `LAST_ADMIN` |
+| `admin_set_staff_password(uuid, text)` | администратор | смена пароля (8–72 символа); сессии не завершаются | `WEAK_PASSWORD`, `STAFF_NOT_FOUND` |
+| `admin_report(timestamptz, timestamptz)` | администратор | сводка за период ≤ 366 дней | `INVALID_PERIOD` |
+| `admin_rename_category(text, text)` | администратор | переименование и объединение | `INVALID_CATEGORY`, `NOT_FOUND` |
+
+**Серверный расчёт надбавки.** Ставка 10 — константа `c_percent` в `place_order`; клиент её не передаёт. Позиции заказа хранят цену
+без надбавки (`order_items.unit_price`), поэтому `line_total`, экраны кухни и бара, отчёт по блюдам и категориям — без надбавки; `orders.total`
+и выручка в отчётах — с надбавкой. Ограничение `orders_total_parts` не даёт сохранить итог, не равный подытогу плюс надбавке.
+Старые заказы: `subtotal = total`, надбавка 0.
+
+**Аннулированные заказы.** Остаются в `orders` с составом, суммами, временем, автором и причиной. Не входят в выручку смены
+(`_shift_json`) и в `admin_report`; пропадают из `_station_orders` (кухня и бар). Видны в истории, фильтр «Только аннулированные»
+отбирает их по `voided_at`. Статус заказа аннулирование не меняет. Повторное аннулирование — без изменений.
+
+**Кассовые смены.** Ожидаемая сумма = начальная + выручка заказов смены (с надбавкой, без аннулированных) + внесения − изъятия. Заказ
+привязывается к открытой смене кассира при вставке (триггер); оформление без смены разрешено. Закрытая смена хранит снимок
+(`orders_count`, `sales_total`, `deposits_total`, `withdrawals_total`, `expected_cash`, `difference`). Заказ, оформляемый в момент
+закрытия, дожидается блокировки `for share` и в закрываемую смену не попадает.
+
+**Управление сотрудниками.** Вход прежний: `employee_login_email(код)` → Supabase Auth. Удаления сотрудников нет (внешние ключи
+заказов и смен), только `is_active`. Отключённый сотрудник не может войти. Уже открытый сеанс: функции сервера проверяют активность роли при каждом вызове
+(`NOT_ALLOWED` → приложение возвращает на экран входа), а обновление меню кассы дополнительно перечитывает профиль
+(`Database._check_still_allowed`, вызывается из `load_menu`). Смена пароля не завершает действующие сеансы.
+
+**Отчёты.** Названия и цены — из `order_items`; категория — текущая из `menu_items` (в заказе её нет); дни — по поясу `Asia/Almaty`.
+Заказы из «Удалённых» (10) в выручке остаются.
+
+**Ограничения Supabase/GoTrue.**
+- `admin_create_staff` пишет прямо в `auth.users` (столбцы `instance_id`, `aud`, `role`, `email`, `encrypted_password`,
+  `email_confirmed_at`, `raw_app_meta_data`, `raw_user_meta_data`, пустые токены) и в `auth.identities` (`provider_id`, `identity_data`,
+  `provider`). Схема `auth` и ожидания GoTrue зависят от версии; эмуляция в локальном прогоне — упрощённая копия, а не GoTrue.
+  Работоспособность входа созданного сотрудника на Supabase **не проверена**.
+- Функции используют `extensions.crypt` и `extensions.gen_salt` (расширение `pgcrypto` в схеме `extensions`, как в Supabase по умолчанию).
+- Для PostgREST после миграций выполняется `notify pgrst, 'reload schema'`; фактическое обновление кэша на Supabase не проверялось.
+- Встраивание кассира в `load_orders` указывает внешний ключ явно (`profiles!orders_cashier_id_fkey`) — см. [BUGFIXES.md](BUGFIXES.md).
+
+**Повторный запуск 08** возвращает `create_order` и `_station_orders` без надбавки и без фильтра аннулированных (подтверждено локально);
+после него запустить 09 и 11 (таблица выше).
 
 ## Безопасный порядок проверки миграций
 

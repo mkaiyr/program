@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT))
 import db as dbm  # noqa: E402
 import ui_kitchen  # noqa: E402
 import ui_order  # noqa: E402
+from money import order_totals  # noqa: E402
 from _tk import get_root  # noqa: E402
 
 
@@ -53,13 +54,15 @@ class FakeDB:
     def load_station_orders(self, station):
         return []
 
-    def create_order(self, request_id, items):
+    def create_order(self, request_id, items, expected_total=None):
         for item_id, _qty, price in items:
             item = self.items[item_id]
             if not item["is_available"] or item["price"] != price:
                 raise dbm.AppError("Меню изменилось: " + item["name"], "menu_changed")
         self.orders.append(items)
-        return {"order_id": len(self.orders), "total": sum(p * q for _i, q, p in items), "duplicate": False}
+        subtotal, service, total = order_totals(sum(p * q for _i, q, p in items))
+        return {"order_id": len(self.orders), "subtotal": subtotal, "service_amount": service, "total": total,
+                "duplicate": False}
 
 
 class PanelsTest(unittest.TestCase):

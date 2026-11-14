@@ -12,8 +12,10 @@ kitchen_orders / bar_orders — только позиции своей стан�
 import logging
 import sys
 import threading
+import time
 import tkinter as tk
 from collections import deque
+from datetime import datetime, timezone
 from tkinter import messagebox, ttk
 
 import ui_theme as theme
@@ -21,6 +23,8 @@ from db import ORDER_STATUSES, ROLE_TRANSITIONS, STATIONS, AppError, menu_status
 from search import search
 from ui_kitchen_menu import TOGGLEABLE, KitchenMenuPanel, ProposeDialog
 
+WARN_MINUTES = 10       # заказ ждёт дольше — карточка жёлтая
+LATE_MINUTES = 20       # ещё дольше — красная
 AUTO_REFRESH_MS = 7000  # автообновление заказов, чтобы новые появлялись сами
 SEEN_LIMIT = 5000       # сколько ID заказов помнить для защиты от повторного сигнала
 CARD_COLUMNS = 3
@@ -29,6 +33,23 @@ ACTION = {"preparing": ("Начать готовить", "Big.Primary.TButton"),
 STAFF_TITLE = {"kitchen": "Повар", "bar": "Бармен"}
 
 log = logging.getLogger(__name__)
+
+
+def waiting_minutes(created_raw, now=None):
+    """Сколько полных минут заказ ждёт (по времени создания на сервере); None — время неизвестно."""
+    try:
+        created = datetime.fromisoformat(created_raw)
+    except (TypeError, ValueError):
+        return None
+    now = now or datetime.now(timezone.utc)
+    return max(0, int((now - created).total_seconds() // 60))
+
+
+def delay_level(minutes):
+    """0 — в норме, 1 — задерживается (>= WARN_MINUTES), 2 — сильно (>= LATE_MINUTES)."""
+    if minutes is None:
+        return 0
+    return 2 if minutes >= LATE_MINUTES else 1 if minutes >= WARN_MINUTES else 0
 
 
 def play_alert(widget):
@@ -273,7 +294,8 @@ class KitchenFrame(ttk.Frame):
 
     def _render_orders(self):
         orders = self.visible_orders()
-        state = (orders, self.search_var.get().strip())
+        # Минута входит в состояние: время ожидания на карточках обновляется раз в минуту
+        state = (orders, self.search_var.get().strip(), int(time.time() // 60))
         if state == self.shown_orders:
             return  # ничего не изменилось — не перерисовывать (автообновление)
         self.shown_orders = state
@@ -293,10 +315,18 @@ class KitchenFrame(ttk.Frame):
 
     def _order_card(self, master, order):
         box = theme.card(master)
+        minutes = waiting_minutes(order.get("created_raw"))
+        level = delay_level(minutes)
+        if level:  # цветная рамка: задержку видно с расстояния
+            box.config(highlightbackground=theme.DANGER if level == 2 else theme.WARNING, highlightthickness=3)
         top = ttk.Frame(box, style="Card.TFrame")
         top.pack(fill="x")
-        ttk.Label(top, text=f"№ {order['id']}", style="CardH2.TLabel").pack(side="left")
-        ttk.Label(top, text=order["time"], style="CardMuted.TLabel").pack(side="right")
+        ttk.Label(top, text=f"№ {order['id']}", style="CardH1.TLabel").pack(side="left")
+        ttk.Label(top, text=f"принят {order['time']}", style="CardMuted.TLabel").pack(side="right")
+        if minutes is not None:
+            wait_style = ("Card.TLabel", "CardWarn.TLabel", "CardDanger.TLabel")[level]
+            suffix = "" if level == 0 else "  — задерживается" if level == 1 else "  — срочно!"
+            ttk.Label(box, text=f"Ждёт {minutes} мин{suffix}", style=wait_style).pack(anchor="w", pady=(2, 0))
 
         badge = ttk.Label(box, text=ORDER_STATUSES.get(order["status"], order["status"]),
                           style=f"Badge.{order['status']}.TLabel")

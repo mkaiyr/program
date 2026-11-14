@@ -266,21 +266,27 @@ class UiTest(unittest.TestCase):
             window.destroy()
 
     def test_app_routes_by_role(self):
-        """Кухня попадает на экран кухни, кассир и администратор — в кассу.
+        """Кухня — на экран кухни, кассир — в кассу, администратор — в оболочку с боковой панелью.
 
         Второй tk.Tk() в одном процессе на macOS вешает тесты, поэтому App
         не создаётся: show_main вызывается на заглушке, экраны подменены.
         """
         import main
-        for role, screen in (("kitchen", "KitchenFrame"), ("cashier", "OrderFrame"), ("admin", "OrderFrame")):
+        screens = {"KitchenFrame": "KitchenFrame", "OrderFrame": "OrderFrame", "AdminShell": "AdminShell"}
+        for role, expected in (("kitchen", "KitchenFrame"), ("cashier", "OrderFrame"), ("admin", "AdminShell")):
             app = mock.Mock()
-            with mock.patch.object(main, "KitchenFrame") as kitchen, mock.patch.object(main, "OrderFrame") as order:
+            patches = {name: mock.patch.object(main, name) for name in screens}
+            mocks = {name: p.start() for name, p in patches.items()}
+            try:
                 main.App.show_main(app, {"full_name": "X", "role": role})
-            called = kitchen if screen == "KitchenFrame" else order
-            other = order if screen == "KitchenFrame" else kitchen
-            called.assert_called_once()
-            other.assert_not_called()
-            app._show.assert_called_once_with(called.return_value)
+            finally:
+                for p in patches.values():
+                    p.stop()
+            mocks[expected].assert_called_once()
+            for name, m in mocks.items():
+                if name != expected:
+                    m.assert_not_called()
+            app._show.assert_called_once_with(mocks[expected].return_value)
 
 
 if __name__ == "__main__":

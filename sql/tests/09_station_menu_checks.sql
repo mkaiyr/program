@@ -654,7 +654,10 @@ begin
                             'expected_price', '450.50'),
          jsonb_build_object('menu_item_id', current_setting('test.new_bar')::bigint, 'quantity', 1,
                             'expected_price', '600.00')));
-  assert (v ->> 'total')::numeric = 1501.00, 'FAIL: сумма заказа должна быть 2 × 450.50 + 600.00';
+  -- Подытог 2 × 450.50 + 600.00; после миграции 11 к итогу добавляется надбавка (в ответе есть service_amount)
+  assert coalesce((v ->> 'subtotal')::numeric, (v ->> 'total')::numeric) = 1501.00
+     and (v ->> 'total')::numeric = 1501.00 + coalesce((v ->> 'service_amount')::numeric, 0),
+    'FAIL: сумма заказа должна быть 2 × 450.50 + 600.00 (плюс надбавка после миграции 11)';
   perform set_config('test.order', v ->> 'order_id', true);
 end;
 $$;

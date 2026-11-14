@@ -8,6 +8,7 @@ from tkinter import messagebox, ttk
 
 import ui_theme as theme
 from db import AppError, unexpected_error
+from money import SERVICE_PERCENT, fmt_money, order_totals  # noqa: F401 — fmt_money используют другие окна
 from search import find_by_code, search
 
 MAX_QTY = 100     # совпадает с ограничением order_items.quantity
@@ -17,13 +18,10 @@ TILE_LIMIT = 60   # больше плиток не рисуется: при 500�
 ALL_CATEGORIES = "Все"
 
 
-def fmt_money(amount):
-    return f"{amount:,.2f}".replace(",", " ") + " ₸"
-
-
 class OrderFrame(ttk.Frame):
-    def __init__(self, master, db, profile, on_logout):
-        super().__init__(master, padding=16)
+    def __init__(self, master, db, profile, on_logout, embedded=False):
+        super().__init__(master, padding=0 if embedded else 16)
+        self.embedded = embedded  # внутри административной оболочки: свою шапку не рисуем
         self.db = db
         self.on_logout = on_logout
         self.menu = {}         # id -> {id, name, category, price}
@@ -38,6 +36,7 @@ class OrderFrame(ttk.Frame):
         self.closed = False    # экран уничтожен: результаты фоновых запросов игнорируются
         self.is_admin = profile["role"] == "admin"
         self.orders_window = None
+        self.shift_window = None
 
         self._build(profile)
         self.reload_menu()
@@ -46,23 +45,28 @@ class OrderFrame(ttk.Frame):
 
     def _build(self, profile):
         role_title = "Администратор" if self.is_admin else "Кассир"
-        top, right = theme.header(self, "Кафе Бистро", f"{role_title}: {profile['full_name']}")
-        top.pack(fill="x", pady=(0, 12))
-        self.logout_btn = ttk.Button(right, text="Выйти", command=self.logout)
-        self.logout_btn.pack(side="right")
-        self.reload_btn = ttk.Button(right, text="Обновить меню", command=self.reload_menu)
-        self.reload_btn.pack(side="right", padx=8)
-        # Кнопка — только удобство; права на изменение меню проверяет сервер
         self.admin_btn = None
-        if self.is_admin:
-            self.admin_btn = ttk.Button(right, text="Управление меню", command=self.open_menu_admin)
-            self.admin_btn.pack(side="right")
-        ttk.Button(right, text="Заказы", command=self.open_orders).pack(side="right", padx=8)
+        if self.embedded:
+            self.logout_btn = None  # выход — в боковой панели оболочки
+            self.reload_btn = None  # создаётся в заголовке корзины
+        else:
+            top, right = theme.header(self, "Кафе Бистро", f"{role_title}: {profile['full_name']}")
+            top.pack(fill="x", pady=(0, 12))
+            self.logout_btn = ttk.Button(right, text="Выйти", command=self.logout)
+            self.logout_btn.pack(side="right")
+            self.reload_btn = ttk.Button(right, text="Обновить меню", command=self.reload_menu)
+            self.reload_btn.pack(side="right", padx=8)
+            # Кнопка — только удобство; права на изменение меню проверяет сервер
+            if self.is_admin:
+                self.admin_btn = ttk.Button(right, text="Управление меню", command=self.open_menu_admin)
+                self.admin_btn.pack(side="right")
+            ttk.Button(right, text="Смена", command=self.open_shift).pack(side="right", padx=8)
+            ttk.Button(right, text="Заказы", command=self.open_orders).pack(side="right")
 
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
         body.columnconfigure(0, weight=3)
-        body.columnconfigure(1, weight=2, minsize=380)
+        body.columnconfigure(1, weight=2, minsize=470)
         body.rowconfigure(0, weight=1)
 
         # Каталог: фильтр категорий и плитки блюд (нажатие добавляет 1 шт.)
@@ -71,14 +75,13 @@ class OrderFrame(ttk.Frame):
         self.category_var = tk.StringVar(value=ALL_CATEGORIES)
         search_row = ttk.Frame(catalog)
         search_row.pack(fill="x", pady=(0, 8))
-        ttk.Label(search_row, text="Код или название:").pack(side="left")
+        ttk.Label(search_row, text="Поиск (код + Enter):").pack(side="left")
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *_a: self._schedule_catalog())
-        self.search_entry = ttk.Entry(search_row, textvariable=self.search_var, font=theme.FONT_BIG, width=18)
+        self.search_entry = ttk.Entry(search_row, textvariable=self.search_var, font=theme.FONT_BIG, width=14)
         self.search_entry.pack(side="left", padx=8)
         self.search_entry.bind("<Return>", lambda _e: self.add_from_search())
-        ttk.Button(search_row, text="✕", width=2, command=lambda: self.search_var.set("")).pack(side="left")
-        ttk.Label(search_row, text="Enter — добавить по коду", style="Muted.TLabel").pack(side="left", padx=8)
+        ttk.Button(search_row, text="✕", width=3, command=lambda: self.search_var.set("")).pack(side="left")
         self.chips = ttk.Frame(catalog)
         self.chips.pack(fill="x", pady=(0, 8))
         self.catalog = theme.ScrollFrame(catalog)
@@ -87,25 +90,43 @@ class OrderFrame(ttk.Frame):
         # Корзина
         cart = theme.card(body)
         cart.grid(row=0, column=1, sticky="nsew")
-        ttk.Label(cart, text="Текущий заказ", style="CardH2.TLabel").pack(anchor="w", pady=(0, 8))
+        title_row = ttk.Frame(cart, style="Card.TFrame")
+        title_row.pack(fill="x", pady=(0, 8))
+        ttk.Label(title_row, text="Текущий заказ", style="CardH2.TLabel").pack(side="left")
+        if self.embedded:
+            self.reload_btn = ttk.Button(title_row, text="Обновить меню", command=self.reload_menu)
+            self.reload_btn.pack(side="right")
         # Итог и «Оформить» размещаются первыми снизу: при нехватке места сжимается таблица, а не кнопка
         self.submit_btn = ttk.Button(cart, text="Оформить заказ", style="Big.Primary.TButton", command=self.submit)
-        self.submit_btn.pack(side="bottom", fill="x", pady=(12, 0))
+        self.submit_btn.pack(side="bottom", fill="x", pady=(12, 0), ipady=6)
         total_row = ttk.Frame(cart, style="Card.TFrame")
-        total_row.pack(side="bottom", fill="x")
-        ttk.Label(total_row, text="Итого", style="CardMuted.TLabel").pack(side="left")
+        total_row.pack(side="bottom", fill="x", pady=(6, 0))
+        ttk.Label(total_row, text="ИТОГО", style="CardBold.TLabel").pack(side="left")
         self.total_label = ttk.Label(total_row, text=fmt_money(Decimal(0)), style="Total.TLabel")
         self.total_label.pack(side="right")
+        service_row = ttk.Frame(cart, style="Card.TFrame")
+        service_row.pack(side="bottom", fill="x")
+        ttk.Label(service_row, text=f"Надбавка {SERVICE_PERCENT:.0f}%", style="CardMuted.TLabel").pack(side="left")
+        self.service_label = ttk.Label(service_row, text=fmt_money(Decimal(0)), style="CardBold.TLabel")
+        self.service_label.pack(side="right")
+        subtotal_row = ttk.Frame(cart, style="Card.TFrame")
+        subtotal_row.pack(side="bottom", fill="x", pady=(8, 0))
+        ttk.Label(subtotal_row, text="Подытог", style="CardMuted.TLabel").pack(side="left")
+        self.subtotal_label = ttk.Label(subtotal_row, text=fmt_money(Decimal(0)), style="CardBold.TLabel")
+        self.subtotal_label.pack(side="right")
         ttk.Separator(cart).pack(side="bottom", fill="x", pady=8)
         cart_btns = ttk.Frame(cart, style="Card.TFrame")
         cart_btns.pack(side="bottom", fill="x", pady=(8, 0))
-        ttk.Button(cart_btns, text="−", width=3, command=lambda: self.change_qty(-1)).pack(side="left")
-        ttk.Button(cart_btns, text="+", width=3, command=lambda: self.change_qty(1)).pack(side="left", padx=6)
-        ttk.Button(cart_btns, text="Удалить", command=self.remove_item).pack(side="left")
-        ttk.Button(cart_btns, text="Очистить", command=self.clear_cart).pack(side="right")
+        ttk.Button(cart_btns, text="−", width=3, style="Touch.TButton",
+                   command=lambda: self.change_qty(-1)).pack(side="left")
+        ttk.Button(cart_btns, text="+", width=3, style="Touch.TButton",
+                   command=lambda: self.change_qty(1)).pack(side="left", padx=6)
+        ttk.Button(cart_btns, text="Удалить", style="Touch.TButton", command=self.remove_item).pack(side="left")
+        ttk.Button(cart_btns, text="Очистить", style="Touch.TButton", command=self.clear_cart).pack(side="right")
 
         cols = ("name", "price", "qty", "sum")
-        self.cart_tree = ttk.Treeview(cart, columns=cols, show="headings", selectmode="browse", height=5)
+        self.cart_tree = ttk.Treeview(cart, columns=cols, show="headings", selectmode="browse", height=5,
+                                      style="Cart.Treeview")
         for col, title, width, anchor in (("name", "Позиция", 150, "w"), ("price", "Цена", 90, "e"),
                                           ("qty", "Кол-во", 60, "center"), ("sum", "Сумма", 100, "e")):
             self.cart_tree.heading(col, text=title)
@@ -152,7 +173,7 @@ class OrderFrame(ttk.Frame):
         self.busy = busy
         state = "disabled" if busy else "normal"
         for btn in (self.submit_btn, self.reload_btn, self.logout_btn, self.admin_btn):
-            if btn is not None:
+            if btn is not None and btn.winfo_exists():
                 btn.config(state=state)
 
     def _show_status(self, text, color="black"):
@@ -316,16 +337,20 @@ class OrderFrame(ttk.Frame):
             self.cart.clear()
             self._cart_changed()
 
+    def cart_totals(self):
+        """(подытог, надбавка 10%, итого) текущей корзины — те же числа, что посчитает сервер."""
+        return order_totals(sum((line["price"] * line["qty"] for line in self.cart.values()), Decimal(0)))
+
     def _cart_changed(self, select_id=None):
         # Изменённый заказ — это новый запрос, поэтому сбрасываем его ID
         self.request_id = None
         self.cart_tree.delete(*self.cart_tree.get_children())
-        total = Decimal(0)
         for item_id, line in self.cart.items():
-            line_sum = line["price"] * line["qty"]
-            total += line_sum
             self.cart_tree.insert("", "end", iid=str(item_id), values=(
-                line["name"], fmt_money(line["price"]), line["qty"], fmt_money(line_sum)))
+                line["name"], fmt_money(line["price"]), line["qty"], fmt_money(line["price"] * line["qty"])))
+        subtotal, service, total = self.cart_totals()
+        self.subtotal_label.config(text=fmt_money(subtotal))
+        self.service_label.config(text=fmt_money(service))
         self.total_label.config(text=fmt_money(total))
         if select_id in self.cart:
             self.cart_tree.selection_set(str(select_id))
@@ -349,8 +374,9 @@ class OrderFrame(ttk.Frame):
             self.request_id = uuid.uuid4()
         items = [(item_id, line["qty"], line["price"]) for item_id, line in self.cart.items()]
         request_id = self.request_id
+        expected_total = self.cart_totals()[2]  # сервер сверит со своим расчётом
         self._show_status("Сохранение заказа...", "gray")
-        self._run(lambda: self.db.create_order(request_id, items), self._order_saved,
+        self._run(lambda: self.db.create_order(request_id, items, expected_total), self._order_saved,
                   lambda error: self._order_failed(request_id, error))
 
     def _order_failed(self, request_id, error):
@@ -365,10 +391,14 @@ class OrderFrame(ttk.Frame):
         self.unconfirmed_id = None  # повтор с тем же ID вернул заказ или сохранён новый
         self.cart.clear()
         self._cart_changed()
-        text = f"Заказ № {result['order_id']} оформлен. Сумма: {fmt_money(result['total'])}"
+        total = result["total"]
+        text = f"Заказ № {result['order_id']} оформлен. Итого: {fmt_money(total)}"
+        if result.get("service_amount") is not None and result.get("subtotal") is not None:
+            text += (f"\nПодытог {fmt_money(result['subtotal'])} + надбавка {SERVICE_PERCENT:.0f}% "
+                     f"{fmt_money(result['service_amount'])}")
         if result.get("duplicate"):
             text += "\n(повторный запрос — заказ был сохранён ранее, новый не создан)"
-        self._show_status(text.replace("\n", " "), "green")
+        self._show_status(text.replace("\n", " · "), "green")
         if self.orders_window is not None and self.orders_window.winfo_exists():
             self.orders_window.reload(select_id=result["order_id"])
         messagebox.showinfo("Заказ оформлен", text, parent=self)
@@ -382,6 +412,15 @@ class OrderFrame(ttk.Frame):
         MenuAdminWindow(self, self.db, on_close=self.reload_menu, on_auth_error=self.on_logout)
 
     # ---------- Заказы ----------
+
+    def open_shift(self):
+        if self.shift_window is not None and self.shift_window.winfo_exists():
+            self.shift_window.deiconify()
+            self.shift_window.lift()
+            self.shift_window.panel.reload()
+            return
+        from ui_shift import ShiftWindow
+        self.shift_window = ShiftWindow(self, self.db, on_auth_error=self.on_logout)
 
     def open_orders(self):
         if self.orders_window is not None and self.orders_window.winfo_exists():

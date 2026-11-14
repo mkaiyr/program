@@ -333,7 +333,7 @@ class FakeDB:
     def load_menu(self):
         return self._answer("load_menu", [dict(MENU_ITEM)])
 
-    def create_order(self, request_id, items):
+    def create_order(self, request_id, items, expected_total=None):
         return self._answer("create_order", {"order_id": 5, "total": Decimal("1100.00"), "duplicate": False})
 
     def load_station_orders(self, station):

@@ -12,7 +12,7 @@ from tkinter import messagebox, simpledialog, ttk
 
 import ui_theme as theme
 from db import (MAX_REJECT_REASON, MENU_STATUSES, STATIONS, AppError, check_menu_item, menu_status,
-                parse_menu_code, unexpected_error)
+                parse_menu_code, sort_categories, unexpected_error)
 from search import search
 from ui_order import fmt_money
 
@@ -184,12 +184,15 @@ class MenuAdminWindow(tk.Toplevel):
         if self.busy:
             return
         self._show_status("Загрузка меню...", "gray")
-        self._run(self.db.load_all_menu, lambda items: self._loaded(items, select_id, done_text),
+        self._run(lambda: (self.db.load_all_menu(), self.db.load_categories(lenient=True)),
+                  lambda result: self._loaded(*result, select_id, done_text),
                   self._handle_error)
 
-    def _loaded(self, items, select_id, done_text):
+    def _loaded(self, items, categories, select_id, done_text):
+        # Архивные блюда в редакторе не показываются: ни правки, ни «Есть / Нет». Архив — раздел «Управление меню»
+        items = [item for item in items if not item.get("archived")]
         self.items = {item["id"]: item for item in items}
-        self.category_box["values"] = sorted({item["category"] for item in items})
+        self.category_box["values"] = sort_categories([*categories, *(item["category"] for item in items)])
 
         if select_id is None:
             select_id = self.editing_id

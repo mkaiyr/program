@@ -22,6 +22,16 @@
 
 begin;
 
+-- После миграции 16 станция предлагает блюдо только в существующей категории: заводим «Тест» (откатится).
+-- До миграции 16 справочника нет, и проверка работает как раньше.
+do $$
+begin
+  if to_regclass('public.menu_categories') is not null then
+    insert into public.menu_categories (name) values ('Тест') on conflict do nothing;
+  end if;
+end;
+$$;
+
 -- ---------- 0. Состояние после миграции (от имени postgres) ----------
 
 do $$

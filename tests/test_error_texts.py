@@ -123,6 +123,9 @@ class UnexpectedErrorOnScreenTest(unittest.TestCase):
 
     def test_cashier_status_text(self):
         class BrokenDB:
+            def load_categories(self, lenient=False):  # справочник категорий (миграция 16)
+                return []
+
             def load_menu(self):
                 raise KeyError("price — внутреннее поле ответа")
 

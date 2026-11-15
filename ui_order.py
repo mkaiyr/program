@@ -7,7 +7,7 @@ from decimal import Decimal
 from tkinter import messagebox, ttk
 
 import ui_theme as theme
-from db import AppError, unexpected_error
+from db import AppError, sort_categories, unexpected_error
 from money import SERVICE_PERCENT, fmt_money, order_totals  # noqa: F401 — fmt_money используют другие окна
 from search import find_by_code, search
 
@@ -25,6 +25,7 @@ class OrderFrame(ttk.Frame):
         self.db = db
         self.on_logout = on_logout
         self.menu = {}         # id -> {id, name, category, price}
+        self.categories = []   # справочник категорий (миграция 16): новая категория видна и пока пустая
         self.tiles = {}        # id -> кнопка-плитка в каталоге
         self.catalog_job = None  # отложенная перерисовка каталога при вводе в поиск
         self.cart = {}         # id -> {name, price, qty}
@@ -82,8 +83,13 @@ class OrderFrame(ttk.Frame):
         self.search_entry.pack(side="left", padx=8)
         self.search_entry.bind("<Return>", lambda _e: self.add_from_search())
         ttk.Button(search_row, text="✕", width=3, command=lambda: self.search_var.set("")).pack(side="left")
-        self.chips = ttk.Frame(catalog)
-        self.chips.pack(fill="x", pady=(0, 8))
+        # Ширина рамки не зависит от кнопок внутри (grid_propagate выключен), высоту задаёт _reflow_chips:
+        # иначе перекладка меняла бы ширину, ширина — перекладку, и события Configure шли бы по кругу
+        self.chips = ttk.Frame(catalog, height=1)
+        self.chips.grid_propagate(False)
+        self.chips.pack(fill="x", pady=(0, 4))
+        self.chips_layout = None
+        self.chips.bind("<Configure>", lambda _e: self._reflow_chips())
         self.catalog = theme.ScrollFrame(catalog)
         self.catalog.pack(fill="both", expand=True)
 
@@ -185,9 +191,13 @@ class OrderFrame(ttk.Frame):
         if self.busy:
             return
         self._show_status("Загрузка меню...", "gray")
-        self._run(self.db.load_menu, self._menu_loaded, self._handle_error)
+        self._run(self._fetch_menu, self._menu_loaded, self._handle_error)
 
-    def _menu_loaded(self, items):
+    def _fetch_menu(self):
+        return self.db.load_menu(), self.db.load_categories(lenient=True)
+
+    def _menu_loaded(self, result):
+        items, self.categories = result
         self.menu = {item["id"]: item for item in items}
         self._render_chips()
         self._render_catalog()
@@ -198,14 +208,42 @@ class OrderFrame(ttk.Frame):
             self._show_status(f"Меню загружено: {len(items)} поз.", "gray")
 
     def _render_chips(self):
-        categories = [ALL_CATEGORIES] + sorted({item["category"] for item in self.menu.values()})
+        categories = [ALL_CATEGORIES] + sort_categories([*self.categories, *(i["category"] for i in self.menu.values())])
         if self.category_var.get() not in categories:
             self.category_var.set(ALL_CATEGORIES)
         for child in self.chips.winfo_children():
             child.destroy()
+        self.chips_layout = None
         for category in categories:
             ttk.Radiobutton(self.chips, text=category, value=category, variable=self.category_var,
-                            style="Chip.Toolbutton", command=self._render_catalog).pack(side="left", padx=(0, 6))
+                            style="Chip.Toolbutton", command=self._render_catalog)
+        self._reflow_chips()
+
+    def _reflow_chips(self):
+        """Кнопки категорий переносятся на новую строку, если не помещаются в ширину каталога.
+
+        Список категорий берётся из меню и может быть любой длины, поэтому в одну строку его класть нельзя:
+        правые кнопки уходили бы за край колонки. Перекладывается только при изменении раскладки.
+        """
+        buttons = self.chips.winfo_children()
+        available = self.chips.winfo_width()
+        if available <= 1:
+            available = 400  # окно ещё не показано
+        layout, x, row, col = [], 0, 0, 0
+        for button in buttons:
+            width = button.winfo_reqwidth() + 6
+            if col and x + width > available:
+                row, col, x = row + 1, 0, 0
+            layout.append((row, col))
+            x += width
+            col += 1
+        if layout == getattr(self, "chips_layout", None):
+            return
+        self.chips_layout = layout
+        for button, (row, col) in zip(buttons, layout):
+            button.grid(row=row, column=col, padx=(0, 6), pady=(0, 4), sticky="w")
+        if buttons:
+            self.chips.configure(height=(layout[-1][0] + 1) * (max(b.winfo_reqheight() for b in buttons) + 4))
 
     def _schedule_catalog(self):
         """Несколько нажатий подряд — одна перерисовка (когда Tk освободится)."""
@@ -222,13 +260,23 @@ class OrderFrame(ttk.Frame):
         items = [item for item in self.menu.values() if category in (ALL_CATEGORIES, item["category"])]
         return search(items, self.search_var.get())
 
+    def _empty_text(self):
+        """Что показать, когда в каталоге нет плиток: причина зависит от категории и поиска."""
+        category = self.category_var.get()
+        searching = bool(self.search_var.get().strip())
+        if category != ALL_CATEGORIES:
+            if searching:
+                return f"В категории «{category}» ничего не найдено"
+            return f"В категории «{category}» нет доступных блюд"
+        return "Ничего не найдено" if searching else "Нет доступных блюд"
+
     def _render_catalog(self):
         self.catalog.clear()
         self.tiles.clear()
         inner = self.catalog.inner
         items = self.visible_items()
         if not items:
-            text = "Ничего не найдено" if self.search_var.get().strip() else "Нет доступных блюд"
+            text = self._empty_text()
             ttk.Label(inner, text=text, style="H2.TLabel", foreground=theme.MUTED).grid(row=0, column=0, pady=40)
             return
         for col in range(TILE_COLUMNS):

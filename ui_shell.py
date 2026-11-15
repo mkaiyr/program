@@ -14,7 +14,7 @@ from ui_reports import ReportsPanel
 from ui_shift import ShiftPanel
 from ui_staff import StaffPanel
 
-SECTIONS = (("dashboard", "Главная"), ("cash", "Касса"), ("menu", "Управление меню"), ("categories", "Категории"),
+SECTIONS = (("dashboard", "Главная"), ("cash", "Касса"), ("menu", "Управление меню"), ("categories", "Категории меню"),
             ("staff", "Сотрудники"), ("shifts", "Кассовые смены"), ("orders", "История заказов"),
             ("stats", "Статистика"), ("settings", "Настройки"))
 

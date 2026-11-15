@@ -48,6 +48,9 @@ class FakeDB:
         return self._answer([{"id": 1, "created_at": "", "cashier_name": "К", "total": Decimal("1.00"),
                               "status": "ready", "items": []}])
 
+    def load_categories(self, lenient=False):  # справочник категорий (миграция 16)
+        return []
+
     def load_all_menu(self):
         return self._answer([dict(id=1, code=1001, name="Капучино", category="Напитки", price=Decimal("1100.00"),
                                   is_available=True, station="kitchen")])

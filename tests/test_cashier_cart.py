@@ -42,6 +42,9 @@ class FakeDB:
         self.order_fail = None
         self.expected_totals = []  # итог, который касса передала серверу
 
+    def load_categories(self, lenient=False):  # справочник категорий (миграция 16)
+        return []
+
     def load_menu(self):
         return [dict(item) for item in MENU]
 

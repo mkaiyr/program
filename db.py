@@ -53,7 +53,7 @@ RPC_ERRORS = {
     "DUPLICATE_ITEM": ("invalid", "Позиция повторяется в заказе."),
     "REQUEST_ID_CONFLICT": ("invalid", "Конфликт идентификатора запроса. Попробуйте ещё раз."),
     # Функции управления меню (sql/02_admin_menu.sql)
-    "ADMIN_REQUIRED": ("forbidden", "Изменять меню может только администратор."),
+    "ADMIN_REQUIRED": ("forbidden", "Это действие доступно только администратору."),
     "INVALID_NAME": ("invalid", "Название должно содержать от 1 до 100 символов."),
     "INVALID_CATEGORY": ("invalid", "Категория должна содержать от 1 до 50 символов."),
     "INVALID_PRICE": ("invalid", "Цена должна быть больше нуля, не более двух знаков после запятой."),
@@ -99,6 +99,11 @@ RPC_ERRORS = {
     "STAFF_NOT_FOUND": ("invalid", "Сотрудник не найден. Обновите список."),
     "SELF_LOCKOUT": ("invalid", "Нельзя отключить или понизить собственную учётную запись."),
     "LAST_ADMIN": ("invalid", "Нельзя оставить систему без активного администратора."),
+    # Архив блюд (sql/15_menu_item_archive.sql); NOT_FOUND, NOT_APPROVED, ITEM_REJECTED, ADMIN_REQUIRED — выше
+    "NOT_ARCHIVED": ("invalid", "Удалить навсегда можно только блюдо из архива. Обновите список."),
+    # Справочник категорий (sql/16_menu_categories.sql); CATEGORY_NOT_EMPTY разбирает _api_error (в details — счётчики)
+    "CATEGORY_EXISTS": ("invalid", "Категория с таким названием уже есть."),
+    "CATEGORY_NOT_FOUND": ("invalid", "Такой категории нет. Выберите существующую — новые категории добавляет администратор."),
     # Отчёты (sql/14_reports_categories.sql)
     "INVALID_PERIOD": ("invalid", "Некорректный период (не больше 366 дней)."),
 }
@@ -233,9 +238,20 @@ def _check_menu_rows(rows):
             isinstance(row, dict) and type(row.get("id")) is int and isinstance(row.get("name"), str)
             and isinstance(row.get("category"), str) and isinstance(row.get("is_available"), bool)
             and row.get("status", "on_sale") in MENU_STATUSES
+            and (row.get("archived_at") is None or isinstance(row.get("archived_at"), str))
             for row in rows):
         raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
     return rows
+
+
+def menu_archived(item):
+    """Блюдо в архиве? До миграции 15 сервер archived_at не присылает — тогда все блюда активные."""
+    return bool(item.get("archived_at"))
+
+
+def _menu_rows_with_prices(rows):
+    """Строки меню администратора: цена -> Decimal, флаг archived (до миграции 15 всегда False)."""
+    return [{**row, "price": to_money(row["price"]), "archived": menu_archived(row)} for row in rows]
 
 
 def _check_items(items, keys=()):
@@ -254,15 +270,41 @@ def _check_items(items, keys=()):
     return items
 
 
+def sort_categories(names):
+    """Категории по алфавиту без учёта регистра (Ё и Е сортируются как в словаре Python)."""
+    return sorted({n for n in names if n}, key=lambda n: (n.casefold(), n))
+
+
+def category_not_empty_text(details):
+    """Текст отказа в удалении категории с блюдами; details сервера — «всего;в архиве»."""
+    try:
+        total, archived = (int(x) for x in str(details).split(";"))
+    except ValueError:
+        total = archived = None
+    what = "В категории есть блюда"
+    if total is not None:
+        what = f"В категории {total} блюд" + (f" (из них в архиве — {archived})" if archived else "")
+    return (f"{what}: удалить её нельзя. Сначала перенесите блюда в другую категорию (измените категорию блюда "
+            "в «Управлении меню» или объедините категории переименованием); архивные блюда удалите навсегда.")
+
+
 def _api_error(e, default_text):
     """PostgrestAPIError -> AppError."""
     if e.code in ("PGRST301", "PGRST303") or "JWT" in (e.message or ""):
         return AppError("Сессия истекла. Войдите снова.", "auth")
     if e.code == "42703":  # нет новой колонки: миграция ещё не выполнена
         return AppError("База данных ещё не обновлена (не выполнена SQL-миграция). Обратитесь к администратору.")
+    if e.message == "CATEGORY_NOT_EMPTY":
+        return AppError(category_not_empty_text(e.details), "invalid")
     if e.message in RPC_ERRORS:
         code, text = RPC_ERRORS[e.message]
         return AppError(text.format(details=e.details or ""), code)
+    if e.code == "23503" and "menu_items_category_fkey" in (e.message or ""):
+        # Категорию удалили, пока блюдо сохранялось (гонка двух администраторов): сырую ошибку ключа не показываем
+        return AppError("Категория блюда была удалена или изменена. Обновите список и выберите категорию снова.", "invalid")
+    if e.code == "23514" and "menu_items_archived_state" in (e.message or ""):
+        # Включить наличие архивного блюда нельзя (ограничение миграции 15): сначала восстановить
+        return AppError("Блюдо в архиве — сначала восстановите его. Список обновлён.", "invalid")
     # Подробности — в журнал для разработчика, сотруднику — понятный текст и код ошибки
     log.warning("Ошибка сервера %s: %s", e.code, e.message)
     if e.code in PG_ERRORS:
@@ -437,10 +479,11 @@ class Database:
 
     def load_all_menu(self):
         """Все позиции меню для администратора: [{id, code, name, category, price, is_available,
-        station, status, reject_reason}].
+        station, status, reject_reason, archived}] — активные и архивные вместе, различает `archived`.
 
-        После миграции 09 — RPC station_menu (со статусами «ждёт решения» и «отклонена»),
-        до неё — чтение таблицы, статус по наличию (menu_status).
+        После миграции 09 — RPC station_menu (со статусами «ждёт решения» и «отклонена»; после 15 — с
+        archived_at), до неё — чтение таблицы, статус по наличию (menu_status). До миграции 15 все
+        блюда имеют archived = False.
         """
         try:
             result = self.client.rpc("station_menu", {}).execute()
@@ -450,7 +493,7 @@ class Database:
             return self._load_menu_table()
         except httpx.HTTPError as e:
             raise AppError(NO_NETWORK, "network") from e
-        return [{**row, "price": to_money(row["price"])} for row in _check_menu_rows(result.data)]
+        return _menu_rows_with_prices(_check_menu_rows(result.data))
 
     def _load_menu_table(self):
         """Все позиции меню до миграции 09 (RLS: администратор видит и недоступные)."""
@@ -466,7 +509,7 @@ class Database:
             raise _api_error(e, "Не удалось загрузить меню") from e
         except httpx.HTTPError as e:
             raise AppError("Нет связи с сервером. Проверьте интернет.", "network") from e
-        return [{**row, "price": to_money(row["price"])} for row in result.data]
+        return _menu_rows_with_prices(result.data)
 
     def _admin_rpc(self, name, params, default_text):
         try:
@@ -506,6 +549,65 @@ class Database:
             {"p_id": item_id, "p_available": bool(available)},
             "Доступность не изменена",
         )
+
+    # ---------- Архив блюд (миграция 15) ----------
+    # Только администратор; права проверяет сервер. Блюдо физически не удаляется, пока оно не в архиве;
+    # «удалить навсегда» не меняет заказы (названия, цены и суммы хранятся в самих заказах).
+
+    ARCHIVE_MISSING = ("Архив блюд не настроен на сервере (не выполнена миграция 15). "
+                       "Обратитесь к администратору.")
+
+    def _archive_rpc(self, name, item_id, default_text, expected):
+        """RPC архива: проверка номера до запроса и формы ответа; expected — {поле: значение} ответа."""
+        if type(item_id) is not int:
+            raise AppError("Не выбрано блюдо.", "invalid")
+        data = self._rpc(name, {"p_id": item_id}, default_text, self.ARCHIVE_MISSING)
+        if (not isinstance(data, dict) or data.get("id") != item_id or not isinstance(data.get("name"), str)
+                or any(data.get(key) is not value for key, value in expected.items())):
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
+    def archive_menu_item(self, item_id):
+        """В архив (блюдо снимается с продажи). {id, name, archived: True, changed}; changed = False — уже в архиве."""
+        data = self._archive_rpc("admin_archive_menu_item", item_id, "Блюдо не архивировано", {"archived": True})
+        if type(data.get("changed")) is not bool:
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
+    def restore_menu_item(self, item_id):
+        """Из архива обратно в продажу. {id, name, archived: False, changed}; changed = False — и не было в архиве."""
+        data = self._archive_rpc("admin_restore_menu_item", item_id, "Блюдо не восстановлено", {"archived": False})
+        if type(data.get("changed")) is not bool:
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
+    def purge_menu_item(self, item_id):
+        """Удалить навсегда блюдо из архива. {id, name, purged: True, orders_count} — сколько заказов его содержали
+        (в них название, цена и категория сохраняются). Необратимо."""
+        data = self._archive_rpc("admin_purge_menu_item", item_id, "Блюдо не удалено", {"purged": True})
+        if type(data.get("orders_count")) is not int or data["orders_count"] < 0:
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
+    def count_menu_item_orders(self, item_id):
+        """Сколько заказов содержат блюдо — для подтверждения «Удалить навсегда» (только чтение, RLS администратора).
+
+        В позиции заказа блюдо встречается один раз (unique order_id + menu_item_id), поэтому число строк —
+        число заказов. Заказы, отправленные в «Удалённые заказы», RLS скрывает: число может быть меньше
+        итогового `orders_count`, который вернёт сервер при удалении. Только для показа, решает сервер.
+        """
+        if type(item_id) is not int:
+            raise AppError("Не выбрано блюдо.", "invalid")
+        try:
+            result = (self.client.table("order_items").select("order_id", count="exact")
+                      .eq("menu_item_id", item_id).limit(1).execute())
+        except PostgrestAPIError as e:
+            raise _api_error(e, "Не удалось определить число заказов") from e
+        except httpx.HTTPError as e:
+            raise AppError(NO_NETWORK, "network") from e
+        if type(result.count) is not int or result.count < 0:
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return result.count
 
     # ---------- Решения по позициям станций (миграция 09) ----------
 
@@ -811,7 +913,7 @@ class Database:
             try:
                 call()
             except PostgrestAPIError as e:
-                if e.code in ("PGRST202", "42703", "42P01"):
+                if e.code in ("PGRST202", "PGRST205", "42703", "42P01"):
                     return False
                 # Любая другая ошибка (например, нет прав) — функция на сервере есть
             except httpx.HTTPError as e:
@@ -828,14 +930,61 @@ class Database:
             "13 Управление сотрудниками": exists(rpc("admin_staff_list", {})),
             "14 Отчёты и категории": exists(rpc("admin_report", {
                 "p_from": (now - timedelta(hours=1)).isoformat(), "p_to": now.isoformat()})),
+            "16 Категории меню": exists(lambda: self.client.table("menu_categories").select("name").limit(1).execute()),
         }
+
+    CATEGORIES_MISSING = ("Справочник категорий не настроен на сервере (не выполнена миграция 16). "
+                          "Обратитесь к администратору.")
+
+    def load_categories(self, lenient=False):
+        """Названия категорий из справочника (миграция 16) по алфавиту. До миграции 16 — пустой список:
+        вызывающий берёт категории из самих блюд. lenient — подсказки в списках не должны ломать экран:
+        любая ошибка, кроме потери сессии, даёт пустой список."""
+        try:
+            return self._load_categories()
+        except AppError as e:
+            if lenient and e.code != "auth":
+                return []
+            raise
+
+    def _load_categories(self):
+        try:
+            result = self.client.table("menu_categories").select("name").execute()
+        except PostgrestAPIError as e:
+            if e.code in ("PGRST205", "42P01"):  # таблицы нет: миграция 16 ещё не выполнена
+                return []
+            raise _api_error(e, "Не удалось загрузить категории") from e
+        except httpx.HTTPError as e:
+            raise AppError(NO_NETWORK, "network") from e
+        return sort_categories(row["name"] for row in result.data if isinstance(row.get("name"), str))
+
+    @staticmethod
+    def _check_category_name(name):
+        name = (name or "").strip()
+        if not name or len(name) > 50:
+            raise AppError("Категория должна содержать от 1 до 50 символов.", "invalid")
+        return name
+
+    def add_category(self, name):
+        name = self._check_category_name(name)
+        data = self._rpc("admin_add_category", {"p_name": name}, "Категория не добавлена", self.CATEGORIES_MISSING)
+        if not isinstance(data, dict) or not isinstance(data.get("name"), str):
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
+
+    def delete_category(self, name):
+        name = self._check_category_name(name)
+        data = self._rpc("admin_delete_category", {"p_name": name}, "Категория не удалена", self.CATEGORIES_MISSING)
+        if not isinstance(data, dict) or not isinstance(data.get("name"), str):
+            raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
+        return data
 
     def rename_category(self, old, new):
         old, new = (old or "").strip(), (new or "").strip()
         if not new or len(new) > 50:
             raise AppError("Категория должна содержать от 1 до 50 символов.", "invalid")
         data = self._rpc("admin_rename_category", {"p_old": old, "p_new": new}, "Категория не изменена",
-                         "Переименование категорий не настроено на сервере (миграция 14).")
+                         "Переименование категорий не настроено на сервере (миграции 14 и 16).")
         if not isinstance(data, dict) or type(data.get("updated")) is not int:
             raise AppError("Сервер вернул неожиданный ответ. Обновите список.")
         return data

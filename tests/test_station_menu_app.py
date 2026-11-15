@@ -138,6 +138,9 @@ class FakeAdminDB:
         }
         self.calls = []
 
+    def load_categories(self, lenient=False):  # справочник категорий (миграция 16)
+        return []
+
     def load_all_menu(self):
         return [dict(r) for r in self.rows.values()]
 

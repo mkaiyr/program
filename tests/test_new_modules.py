@@ -352,6 +352,9 @@ class FakeDB:
                 "cashiers": [{"name": "Мария", "orders": 1, "revenue": D("4400.00"), "service": D("400.00")}],
                 "daily": [{"day": "2026-11-11", "orders": 1, "revenue": D("4400.00")}]}
 
+    def load_categories(self, lenient=False):  # справочник категорий (миграция 16)
+        return []
+
     def load_menu(self):
         return []
 

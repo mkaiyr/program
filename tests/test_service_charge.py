@@ -76,6 +76,9 @@ class FakeDB:
     def __init__(self):
         self.calls = []
 
+    def load_categories(self, lenient=False):  # справочник категорий (миграция 16)
+        return []
+
     def load_menu(self):
         return [dict(i) for i in MENU]
 

@@ -112,6 +112,9 @@ class FakeDB:
             error, self.fail = self.fail, None
             raise error
 
+    def load_categories(self, lenient=False):  # справочник категорий (миграция 16)
+        return []
+
     def load_menu(self):  # касса: только доступные (так фильтрует сервер)
         self._maybe_fail()
         return [{k: v for k, v in i.items() if k != "is_available"} for i in self.items.values() if i["is_available"]]

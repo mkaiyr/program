@@ -330,6 +330,9 @@ class FakeDB:
     def load_orders(self):
         return self._answer("load_orders", [dict(ORDER)])
 
+    def load_categories(self, lenient=False):  # справочник категорий (миграция 16)
+        return []
+
     def load_menu(self):
         return self._answer("load_menu", [dict(MENU_ITEM)])
 

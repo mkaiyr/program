@@ -14,7 +14,7 @@ insert into public.menu_items (name, category, price, station) values
   ('ТЕСТ Отчёт А', 'ТЕСТ-кат', 3000, 'kitchen'), ('ТЕСТ Отчёт Б', 'ТЕСТ-кат', 1000, 'bar');
 select set_config('test.a', (select id::text from public.menu_items where name = 'ТЕСТ Отчёт А'), true),
        set_config('test.b', (select id::text from public.menu_items where name = 'ТЕСТ Отчёт Б'), true),
-       set_config('test.t0', clock_timestamp()::text, true);
+       set_config('test.t0', now()::text, true);
 
 select set_config('request.jwt.claims',
          json_build_object('sub', current_setting('test.cashier_id'), 'role', 'authenticated')::text, true);
@@ -45,7 +45,7 @@ select set_config('request.jwt.claims',
          json_build_object('sub', current_setting('test.admin_id'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 do $$
-declare r jsonb := public.admin_report(current_setting('test.t0')::timestamptz - interval '1 second', now() + interval '1 minute');
+declare r jsonb := public.admin_report(current_setting('test.t0')::timestamptz, now() + interval '1 minute');
 begin
   -- заказы: 4000 + 6000 = 10000 -> надбавки 400 + 600 = 1000 -> выручка 11000
   if (r ->> 'orders_count')::int <> 2 or (r ->> 'subtotal_total')::numeric <> 10000

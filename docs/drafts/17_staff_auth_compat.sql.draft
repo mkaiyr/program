@@ -1,0 +1,136 @@
+-- =====================================================================
+-- ЧЕРНОВИК (НЕ ПРИМЕНЯТЬ без решения владельца) — проект миграции 17: совместимость создания сотрудников с Supabase Auth
+-- Лежит в docs/drafts/, а не в sql/: не попадает ни в тесты миграций, ни в порядок развёртывания.
+-- Получен автоматически из текста sql/13_staff_management.sql тремя точечными заменами; миграцию 13 НЕ меняет (новая миграция).
+-- Требует выполненной 13. Одна транзакция, повторный запуск безопасен.
+--
+-- Что исправляет:
+--   1. Токен-колонки auth.users: GoTrue читает их как строки, NULL ломает вход (известная особенность; на настоящем GoTrue не проверено).
+--      Миграция 13 задаёт явно только четыре (confirmation_token, recovery_token, email_change_token_new, email_change). Если в схеме
+--      проекта есть другие строковые колонки *token* / *change*, допускающие NULL и без значения по умолчанию, у нового сотрудника они
+--      оставались бы NULL. Функция _staff_auth_normalize заменяет NULL на '' по ЧТЕНИЮ СХЕМЫ ПРОЕКТА, а не по списку из памяти.
+--   2. Стоимость bcrypt: gen_salt('bf') даёт стоимость 6; ставится 10.
+--   3. Длина пароля: length() считает символы, bcrypt учитывает 72 БАЙТА; кириллический пароль из 40 символов (80 байт) проходил
+--      проверку, а окончание после 72-го байта не влияло на хеш. Проверка заменена на octet_length().
+-- Что НЕ исправляет: уже созданных сотрудников (для них внизу необязательный отдельный шаг) и прямую запись в auth.users
+-- (варианты — в docs/AUTH_COMPATIBILITY_AUDIT.md). Приложение: проверка длины пароля в db.py тоже считает символы — нужна парная правка.
+-- =====================================================================
+
+begin;
+
+do $$
+begin
+  if not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_create_staff')
+     or not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'admin_set_staff_password') then
+    raise exception 'ОСТАНОВЛЕНО: сначала выполните миграцию 13 (admin_create_staff, admin_set_staff_password)';
+  end if;
+end $$;
+
+-- Заменяет NULL на '' во всех строковых токен-колонках auth.users для одной записи (список читается из схемы проекта)
+create or replace function public._staff_auth_normalize(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  c record;
+begin
+  for c in select column_name from information_schema.columns
+            where table_schema = 'auth' and table_name = 'users' and is_nullable = 'YES'
+              and data_type in ('character varying', 'text') and column_name ~ '(token|change)' loop
+    execute format('update auth.users set %1$I = '''' where id = $1 and %1$I is null', c.column_name) using p_id;
+  end loop;
+end;
+$$;
+
+revoke all on function public._staff_auth_normalize(uuid) from public, anon, authenticated;
+
+create or replace function public.admin_create_staff(p_full_name text, p_role text, p_code text, p_password text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id    uuid := gen_random_uuid();
+  v_email text;
+  v_name  text := trim(coalesce(p_full_name, ''));
+begin
+  perform public._staff_admin_only();
+  perform public._staff_check_fields(v_name, p_role, p_code);
+  if p_password is null or length(p_password) < 8 or octet_length(p_password) > 72 then
+    raise exception using errcode = '22023', message = 'WEAK_PASSWORD';
+  end if;
+  if exists (select 1 from public.profiles p where p.employee_code = p_code) then
+    raise exception using errcode = '23505', message = 'EMPLOYEE_CODE_TAKEN';
+  end if;
+
+  v_email := v_id::text || '@bistro.local';
+
+  insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+                          raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                          confirmation_token, recovery_token, email_change_token_new, email_change)
+  values ('00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated', v_email,
+          extensions.crypt(p_password, extensions.gen_salt('bf', 10)), now(),
+          '{"provider": "email", "providers": ["email"]}'::jsonb, '{}'::jsonb, now(), now(),
+          '', '', '', '');
+
+  perform public._staff_auth_normalize(v_id);   -- токен-колонки, которых не знает миграция 13, не должны остаться NULL
+
+  insert into auth.identities (id, user_id, provider_id, identity_data, provider,
+                               last_sign_in_at, created_at, updated_at)
+  values (gen_random_uuid(), v_id, v_id::text,
+          jsonb_build_object('sub', v_id::text, 'email', v_email, 'email_verified', true),
+          'email', now(), now(), now());
+
+  insert into public.profiles (id, full_name, role, employee_code, is_active)
+  values (v_id, v_name, p_role, p_code, true);
+
+  return jsonb_build_object('id', v_id, 'full_name', v_name, 'role', p_role,
+                            'employee_code', p_code, 'is_active', true);
+end;
+$$;
+
+revoke all on function public.admin_create_staff(text, text, text, text) from public, anon;
+grant execute on function public.admin_create_staff(text, text, text, text) to authenticated;
+
+create or replace function public.admin_set_staff_password(p_id uuid, p_password text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public._staff_admin_only();
+  if p_password is null or length(p_password) < 8 or octet_length(p_password) > 72 then
+    raise exception using errcode = '22023', message = 'WEAK_PASSWORD';
+  end if;
+  if not exists (select 1 from public.profiles p where p.id = p_id) then
+    raise exception using errcode = 'P0002', message = 'STAFF_NOT_FOUND';
+  end if;
+  update auth.users
+     set encrypted_password = extensions.crypt(p_password, extensions.gen_salt('bf', 10)), updated_at = now()
+   where id = p_id;
+  if not found then
+    raise exception using errcode = 'P0002', message = 'STAFF_NOT_FOUND';
+  end if;
+  return jsonb_build_object('id', p_id, 'password_changed', true);
+end;
+$$;
+
+revoke all on function public.admin_set_staff_password(uuid, text) from public, anon;
+grant execute on function public.admin_set_staff_password(uuid, text) to authenticated;
+
+-- ---------- ОПЦИОНАЛЬНО, отдельным решением: исправить уже созданных сотрудников ----------
+-- Сначала посмотрите, у кого есть NULL (SELECT только читает), затем при необходимости раскомментируйте блок DO.
+-- select u.id, p.employee_code, p.full_name from auth.users u join public.profiles p on p.id = u.id
+--  where u.email like '%@bistro.local' and exists (select 1 from jsonb_each(to_jsonb(u)) e where e.value = 'null'::jsonb and e.key ~ '(token|change)');
+-- do $do$ declare r record; begin
+--   for r in select u.id from auth.users u join public.profiles p on p.id = u.id where u.email like '%@bistro.local' loop
+--     perform public._staff_auth_normalize(r.id);
+--   end loop; end $do$;
+
+notify pgrst, 'reload schema';
+
+commit;

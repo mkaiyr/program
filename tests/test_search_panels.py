@@ -42,6 +42,9 @@ class FakeDB:
         self.items[3]["is_available"] = False  # «Круассан», код 1003 — нет в наличии
         self.orders = []
 
+    def load_categories(self, lenient=False):  # справочник категорий (миграция 16)
+        return []
+
     def load_menu(self):  # касса: сервер отдаёт только доступные (RLS)
         return [{k: v for k, v in i.items() if k != "is_available"} for i in self.items.values() if i["is_available"]]
 

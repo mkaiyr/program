@@ -121,6 +121,9 @@ class OrdersMixin:
         # Аннулирование — основной способ убрать ошибочный заказ: состав и причина сохраняются
         self.void_btn = ttk.Button(actions, text="Аннулировать", style="Danger.TButton", command=self.void_order)
         self.void_btn.pack(side="right", padx=8)
+        # Чек: предпросмотр и печать (в том числе повторная) — только чтение, заказ не меняется
+        self.receipt_btn = ttk.Button(actions, text="Чек…", command=self.open_receipt)
+        self.receipt_btn.pack(side="right")
 
         ttk.Label(root, text="Карточка заказа", style="H2.TLabel").pack(anchor="w", pady=(4, 4))
         detail = ttk.Frame(root)
@@ -354,6 +357,20 @@ class OrdersMixin:
             self.force_btn.config(state="normal" if can_force else "disabled")
         can_delete = order is not None and order["status"] == "completed" and not self.busy and not voided
         self.delete_btn.config(state="normal" if can_delete else "disabled")
+        self.receipt_btn.config(state="normal" if order is not None else "disabled")
+
+    # ---------- Чек ----------
+
+    def open_receipt(self):
+        """Окно чека выбранного заказа: предпросмотр, печать, повторная печать. База данных не затрагивается."""
+        order = self.orders.get(self._selected_id())
+        if order is None:
+            return
+        from ui_receipt import ReceiptWindow  # печать не нужна экрану, пока чек не открыт
+        old = getattr(self, "receipt_window", None)
+        if old is not None and old.winfo_exists():
+            old.close()
+        self.receipt_window = ReceiptWindow(self, order)
 
     # ---------- Смена статуса ----------
 

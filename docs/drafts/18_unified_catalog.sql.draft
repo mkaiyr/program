@@ -1,0 +1,143 @@
+-- ЧЕРНОВИК ДЛЯ РЕВЬЮ. НЕ ПРИМЕНЯТЬ. Не выполнялся ни в одной базе и не проверен на синтаксис (на машине нет клиента PostgreSQL в PATH).
+-- Это не миграция: после согласования схемы файл переносится в sql/ под тем же номером и прогоняется только на новой тестовой БД cashier_catalog_dev.
+-- Стиль защиты — как в миграциях 01–16: SECURITY DEFINER, search_path = '', revoke from public/anon, роль проверяется внутри функции, одна транзакция.
+-- =====================================================================
+-- 18. Единый каталог: расширение menu_items для сайта, состав и аллергены, публичное представление public_menu()
+-- Зависимости: 01–16 (menu_items, menu_categories, is_active_admin).
+-- Новую таблицу блюд для сайта НЕ создаёт: menu_item_public — расширение 1:1 (название, категория, цена, доступность остаются в menu_items).
+-- Цена на сайте публикуется только после явного подтверждения администратором (price_confirmed_price = текущая цена).
+-- =====================================================================
+begin;
+
+do $$
+begin
+  if to_regclass('public.menu_items') is null or to_regclass('public.menu_categories') is null
+     or not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'is_active_admin') then
+    raise exception 'ОСТАНОВЛЕНО: нужны 01–16 (menu_items, menu_categories, is_active_admin)';
+  end if;
+end;
+$$;
+
+alter table public.menu_items add column if not exists updated_at timestamptz not null default now();
+
+create or replace function public._touch_updated_at() returns trigger
+language plpgsql set search_path = '' as $$
+begin new.updated_at := now(); return new; end;
+$$;
+drop trigger if exists menu_items_touch on public.menu_items;
+create trigger menu_items_touch before update on public.menu_items
+  for each row execute function public._touch_updated_at();
+
+create table if not exists public.menu_item_public (
+  item_id               bigint primary key references public.menu_items (id) on delete cascade,
+  slug                  text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  description           text not null default '' check (length(description) <= 500),
+  weight_value          integer check (weight_value > 0),
+  weight_unit           text check (weight_unit in ('г', 'мл', 'шт.')),
+  recommended           boolean not null default false,
+  sort                  integer not null default 0,
+  photo_file            text, photo_thumb text, photo_alt text,
+  published             boolean not null default false,         -- показывать на сайте
+  price_confirmed_price numeric(10, 2),                         -- цена, утверждённая администратором для публикации
+  price_confirmed_by    uuid references auth.users (id) on delete set null,
+  price_confirmed_at    timestamptz,
+  updated_at            timestamptz not null default now()
+);
+
+create table if not exists public.allergens   (id text primary key, name text not null, sort integer not null default 0);
+create table if not exists public.ingredients (id text primary key, name text not null);
+create table if not exists public.ingredient_allergens (
+  ingredient_id text not null references public.ingredients (id) on delete cascade,
+  allergen_id   text not null references public.allergens (id),
+  status        text not null check (status in ('contains', 'may_contain')),
+  primary key (ingredient_id, allergen_id));
+create table if not exists public.menu_item_ingredients (
+  item_id       bigint not null references public.menu_items (id) on delete cascade,
+  ingredient_id text   not null references public.ingredients (id),
+  sort          integer not null default 0,
+  primary key (item_id, ingredient_id));
+-- Это описательный состав (для аллергенов на сайте), а не технологическая карта: количества продуктов склада — в миграции 21.
+
+alter table public.menu_item_public     enable row level security;
+alter table public.allergens            enable row level security;
+alter table public.ingredients          enable row level security;
+alter table public.ingredient_allergens enable row level security;
+alter table public.menu_item_ingredients enable row level security;
+-- Политик для клиентов нет: чтение и запись — только функциями ниже (как у журналов 09/10/15).
+
+create or replace function public.admin_set_menu_item_public(p_item_id bigint, p_data jsonb)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_active_admin() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  if not exists (select 1 from public.menu_items where id = p_item_id) then
+    raise exception using errcode = 'P0002', message = 'ITEM_NOT_FOUND';
+  end if;
+  insert into public.menu_item_public as t (item_id, slug, description, weight_value, weight_unit, recommended, sort, photo_file, photo_thumb, photo_alt)
+  values (p_item_id, p_data ->> 'slug', coalesce(p_data ->> 'description', ''), nullif(p_data ->> 'weight_value', '')::integer, nullif(p_data ->> 'weight_unit', ''),
+          coalesce((p_data ->> 'recommended')::boolean, false), coalesce((p_data ->> 'sort')::integer, 0), p_data ->> 'photo_file', p_data ->> 'photo_thumb', p_data ->> 'photo_alt')
+  on conflict (item_id) do update set slug = excluded.slug, description = excluded.description, weight_value = excluded.weight_value,
+    weight_unit = excluded.weight_unit, recommended = excluded.recommended, sort = excluded.sort, photo_file = excluded.photo_file,
+    photo_thumb = excluded.photo_thumb, photo_alt = excluded.photo_alt, updated_at = now();
+  return jsonb_build_object('item_id', p_item_id);
+end;
+$$;
+
+-- Администратор утверждает ТЕКУЩУЮ цену блюда для сайта. Изменение цены в menu_items подтверждение не сохраняет: блюдо пропадёт из публичного меню до нового подтверждения.
+create or replace function public.admin_confirm_menu_price(p_item_id bigint)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_price numeric;
+begin
+  if not public.is_active_admin() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  select price into v_price from public.menu_items where id = p_item_id for update;
+  if not found then raise exception using errcode = 'P0002', message = 'ITEM_NOT_FOUND'; end if;
+  update public.menu_item_public set price_confirmed_price = v_price, price_confirmed_by = auth.uid(), price_confirmed_at = now()
+   where item_id = p_item_id;
+  if not found then raise exception using errcode = 'P0002', message = 'PUBLIC_DATA_MISSING'; end if;
+  return jsonb_build_object('item_id', p_item_id, 'confirmed_price', v_price);
+end;
+$$;
+
+create or replace function public.admin_publish_menu_item(p_item_id bigint, p_published boolean)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_active_admin() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  if p_published and not exists (
+       select 1 from public.menu_item_public p join public.menu_items m on m.id = p.item_id
+        where p.item_id = p_item_id and p.price_confirmed_price = m.price and m.archived_at is null and m.approved_at is not null) then
+    raise exception using errcode = 'P0001', message = 'PRICE_NOT_CONFIRMED';   -- неподтверждённую цену на сайт не публикуем
+  end if;
+  update public.menu_item_public set published = p_published where item_id = p_item_id;
+  return jsonb_build_object('item_id', p_item_id, 'published', p_published);
+end;
+$$;
+
+-- Публичный каталог в формате контракта (docs/contracts/public_catalog.md). Без закупочных данных, кодов станций и служебных полей.
+-- Блюдо с неподтверждённой или изменённой ценой, архивное или неутверждённое в ответ не попадает.
+create or replace function public.public_menu() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'schema', 1, 'generated_at', now(),
+    'categories', (select coalesce(jsonb_agg(jsonb_build_object('id', c.name, 'name', c.name, 'sort', c.id) order by c.id), '[]'::jsonb) from public.menu_categories c),
+    'dishes', (select coalesce(jsonb_agg(jsonb_build_object(
+        'id', p.slug, 'name', m.name, 'category', m.category, 'price', m.price::integer, 'description', p.description,
+        'weight', case when p.weight_value is null then null else jsonb_build_object('value', p.weight_value, 'unit', p.weight_unit) end,
+        'ingredients', (select coalesce(jsonb_agg(i.ingredient_id order by i.sort), '[]'::jsonb) from public.menu_item_ingredients i where i.item_id = m.id),
+        'recommended', p.recommended, 'sort', p.sort, 'available', m.is_available,
+        'photo', case when p.photo_file is null then null else jsonb_build_object('file', p.photo_file, 'thumb', p.photo_thumb, 'alt', coalesce(p.photo_alt, m.name)) end
+      ) order by p.sort, m.name), '[]'::jsonb)
+      from public.menu_items m join public.menu_item_public p on p.item_id = m.id
+     where p.published and m.archived_at is null and m.approved_at is not null
+       and m.price = round(m.price) and p.price_confirmed_price = m.price));
+$$;
+-- ВОПРОС РЕВЬЮ: на сайте id категории — слаг (burgers), а menu_categories хранит только название. Нужен slug у категории (отдельная таблица соответствия) — решить при согласовании.
+
+revoke all on function public.admin_set_menu_item_public(bigint, jsonb) from public, anon;
+revoke all on function public.admin_confirm_menu_price(bigint)         from public, anon;
+revoke all on function public.admin_publish_menu_item(bigint, boolean) from public, anon;
+grant execute on function public.admin_set_menu_item_public(bigint, jsonb) to authenticated;
+grant execute on function public.admin_confirm_menu_price(bigint)         to authenticated;
+grant execute on function public.admin_publish_menu_item(bigint, boolean) to authenticated;
+revoke all on function public.public_menu() from public;
+grant execute on function public.public_menu() to anon, authenticated;
+
+commit;

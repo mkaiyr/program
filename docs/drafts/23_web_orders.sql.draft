@@ -1,0 +1,100 @@
+-- ЧЕРНОВИК ДЛЯ РЕВЬЮ. НЕ ПРИМЕНЯТЬ. Не выполнялся и не проверен на синтаксис. ЭТО ЭСКИЗ ФОРМЫ: часть решений (персональные данные, доставка, лимиты) требует отдельного согласования.
+-- =====================================================================
+-- 23. Заказы сайта в общей системе: создание клиентом, принятие сотрудником (склад списывается ТОЛЬКО при принятии), безопасное отслеживание
+-- Зависимости: 11, 19–21. Платежи, фискализация и реальная доставка НЕ реализуются: способ оплаты — только пометка «тестовый».
+-- Принципы: цены считает сервер (клиент передаёт id и количество); надбавка 10% НЕ применяется автоматически (решение владельца — см. docs/PRICING_RULES.md);
+--           создание заказа клиентом склад не меняет; принятие — одна транзакция «подтвердить + создать станции + списать»; повтор принятия ничего не списывает.
+-- =====================================================================
+begin;
+
+-- Заказ сайта хранится в общей orders (одна система заказов), отличается source = 'web' и отсутствием confirmed_at до принятия.
+alter table public.orders add column if not exists confirmed_at timestamptz;
+update public.orders set confirmed_at = created_at where confirmed_at is null;               -- заказы кассы подтверждены сразу
+alter table public.orders alter column confirmed_at set default now();                      -- для кассы; для сайта функция создания ставит null явно
+alter table public.orders alter column cashier_id drop not null;                            -- у заказа сайта кассира ещё нет
+alter table public.orders add constraint orders_cashier_by_source check (source = 'web' or cashier_id is not null) not valid;
+-- ВОПРОС РЕВЬЮ: cashier_id nullable затрагивает RLS «кассир видит свои заказы», отчёты (имя кассира) и экран «Заказы»: для web — политика «активный персонал видит ожидающие заказы сайта».
+
+-- Персональные данные клиента — отдельно, без прав у клиентов; читаются только функциями и персоналом
+create table if not exists public.order_customers (
+  order_id     bigint primary key references public.orders (id) on delete cascade,
+  name         text not null check (length(btrim(name)) between 2 and 60),
+  phone        text not null check (phone ~ '^[0-9]{10}$'),
+  fulfillment  text not null check (fulfillment in ('pickup', 'delivery')),
+  address      text check (address is null or length(address) between 5 and 160),
+  comment      text check (comment is null or length(comment) <= 300),
+  pay_method   text not null check (pay_method in ('cash', 'card_on_delivery', 'online_test')),   -- online_test — тестовая имитация, не платёж
+  created_at   timestamptz not null default now()
+);
+-- Отслеживание: в таблице только ХЕШ токена; сам токен выдаётся клиенту один раз при создании
+create table if not exists public.order_tracking (
+  order_id   bigint primary key references public.orders (id) on delete cascade,
+  token_hash bytea not null unique
+);
+alter table public.order_customers enable row level security;
+alter table public.order_tracking  enable row level security;
+
+-- ---------- Клиент (anon): создание заказа ----------
+-- p_items: [{slug, quantity}] — цены и доступность проверяются здесь по публичному каталогу (опубликованные, цена подтверждена, is_available).
+create or replace function public.web_place_order(p_request_id uuid, p_items jsonb, p_customer jsonb)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_order_id bigint; v_subtotal numeric(12, 2); v_token text := encode(gen_random_bytes(24), 'hex'); v_bad text;
+begin
+  if p_request_id is null or p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) not between 1 and 50 then
+    raise exception using errcode = '22023', message = 'INVALID_REQUEST';
+  end if;
+  select o.id into v_order_id from public.orders o join public.order_customers c on c.order_id = o.id where o.client_request_id = p_request_id and o.source = 'web';
+  if found then return jsonb_build_object('duplicate', true, 'order_id', v_order_id); end if;    -- токен повторно не выдаётся
+  select string_agg(coalesce(m.name, x.slug), ', ') into v_bad
+    from jsonb_to_recordset(p_items) as x(slug text, quantity integer)
+    left join public.menu_item_public p on p.slug = x.slug
+    left join public.menu_items m on m.id = p.item_id and p.published and p.price_confirmed_price = m.price and m.archived_at is null and m.approved_at is not null
+   where m.id is null or not m.is_available or x.quantity is null or x.quantity not between 1 and 100;
+  if v_bad is not null then raise exception using errcode = 'P0001', message = 'MENU_CHANGED', detail = v_bad; end if;
+  select sum(m.price * x.quantity) into v_subtotal
+    from jsonb_to_recordset(p_items) as x(slug text, quantity integer) join public.menu_item_public p on p.slug = x.slug join public.menu_items m on m.id = p.item_id;
+  -- ВОПРОС РЕВЬЮ: доставка, минимальный заказ, бесплатная доставка — из настроек общей системы (сейчас только на сайте, демо-значения).
+  insert into public.orders (cashier_id, client_request_id, subtotal, service_percent, service_amount, total, source, confirmed_at)
+  values (null, p_request_id, v_subtotal, 0, 0, v_subtotal, 'web', null) returning id into v_order_id;     -- надбавка не применяется автоматически
+  insert into public.order_items (order_id, menu_item_id, item_name, unit_price, quantity, station, item_code)
+  select v_order_id, m.id, m.name, m.price, x.quantity, m.station, m.code
+    from jsonb_to_recordset(p_items) as x(slug text, quantity integer) join public.menu_item_public p on p.slug = x.slug join public.menu_items m on m.id = p.item_id;
+  -- триггер склада (21) пропускает source = 'web': списания здесь НЕТ
+  insert into public.order_customers (order_id, name, phone, fulfillment, address, comment, pay_method)
+  values (v_order_id, btrim(p_customer ->> 'name'), regexp_replace(coalesce(p_customer ->> 'phone', ''), '\D', '', 'g'), p_customer ->> 'fulfillment',
+          nullif(btrim(p_customer ->> 'address'), ''), nullif(btrim(p_customer ->> 'comment'), ''), p_customer ->> 'pay_method');
+  insert into public.order_tracking (order_id, token_hash) values (v_order_id, digest(v_token, 'sha256'));
+  return jsonb_build_object('duplicate', false, 'order_id', v_order_id, 'total', v_subtotal, 'tracking_token', v_token);
+end;
+$$;
+-- ВОПРОС РЕВЬЮ: анонимный вызов — цель для спама: нужны лимиты (на стороне Supabase/Edge), проверка длин, при необходимости капча. gen_random_bytes/digest — расширение pgcrypto.
+
+-- ---------- Сотрудник: принятие заказа сайта (подтвердить + станции + списание — одна транзакция) ----------
+create or replace function public.web_order_accept(p_order_id bigint)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_confirmed timestamptz; v_source text;
+begin
+  if not public.is_active_staff() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  select confirmed_at, source into v_confirmed, v_source from public.orders where id = p_order_id and voided_at is null and deleted_at is null for update;
+  if not found or v_source <> 'web' then raise exception using errcode = 'P0002', message = 'ORDER_NOT_FOUND'; end if;
+  if v_confirmed is not null then return jsonb_build_object('order_id', p_order_id, 'accepted', true, 'duplicate', true); end if;    -- повторное принятие ничего не списывает
+  update public.orders set confirmed_at = now(), cashier_id = auth.uid() where id = p_order_id;
+  insert into public.order_stations (order_id, station) select distinct p_order_id, i.station from public.order_items i where i.order_id = p_order_id;
+  perform public._stock_apply_sale(p_order_id);       -- при нехватке продуктов (карта заполнена) — INSUFFICIENT_STOCK, и ВСЁ откатывается: заказ остаётся непринятым
+  return jsonb_build_object('order_id', p_order_id, 'accepted', true, 'duplicate', false, 'stock', public.order_stock_info(p_order_id));
+end;
+$$;
+
+-- ---------- Клиент (anon): безопасное отслеживание по токену; чужие данные недоступны ----------
+create or replace function public.web_order_status(p_token text)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object('order_id', o.id, 'status', case when o.voided_at is not null then 'cancelled' when o.confirmed_at is null then 'pending' else o.status end,
+           'total', o.total, 'updated', o.created_at, 'items', (select jsonb_agg(jsonb_build_object('name', i.item_name, 'qty', i.quantity, 'price', i.unit_price)) from public.order_items i where i.order_id = o.id))
+    from public.order_tracking t join public.orders o on o.id = t.order_id where t.token_hash = digest(p_token, 'sha256');
+$$;                                                  -- телефон, адрес и комментарий в ответ НЕ входят
+
+revoke all on function public.web_order_accept(bigint) from public, anon;
+grant execute on function public.web_order_accept(bigint) to authenticated;
+revoke all on function public.web_place_order(uuid, jsonb, jsonb), public.web_order_status(text) from public;
+grant execute on function public.web_place_order(uuid, jsonb, jsonb), public.web_order_status(text) to anon, authenticated;
+commit;

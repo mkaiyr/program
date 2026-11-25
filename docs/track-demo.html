@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru" data-root="./">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Демо-отслеживание доставки — Кафе Бистро</title>
+  <meta name="description" content="Демонстрация отслеживания доставки на карте Алматы: виртуальный курьер едет по настоящим дорогам. Реальные заказы не затрагиваются.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#FBF6EE">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="preload" href="assets/fonts/manrope-cyrillic-wght.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="assets/css/track.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">К содержимому</a>
+  <div class="demo-banner" id="demo-banner" role="note">Демонстрационная версия. Реальные заказы не принимаются</div>
+  <header class="site-header" id="site-header"></header>
+  <main id="main">
+    <div class="container"><h1 class="page-title">Демо-отслеживание доставки</h1>
+      <div id="track" class="mount"><p class="muted">Загрузка…</p></div>
+      <noscript><p class="field-error">Для работы карты нужен JavaScript.</p></noscript></div>
+  </main>
+  <footer class="site-footer" id="site-footer"></footer>
+  <script src="assets/vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="assets/js/pages/track-demo.js"></script>
+</body>
+</html>

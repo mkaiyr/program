@@ -9,7 +9,7 @@ MIME = {".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/ja
         ".woff2": "font/woff2", ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".txt": "text/plain; charset=utf-8"}
 
 def start(root: Path, repo: str = "kafe-bistro"):
-    site, prefix = root / "docs", f"/{repo}/"
+    site, prefix = (root / "docs").resolve(), f"/{repo}/"   # resolve: временные папки macOS лежат за ссылкой /var → /private/var
     class H(http.server.BaseHTTPRequestHandler):
         def log_message(self, *a): pass
         def do_GET(self):

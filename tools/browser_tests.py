@@ -93,7 +93,7 @@ def plan_for(width, height, tag):
       return JSON.stringify({h1: txt(q('h1')), addDetail: !!q('[data-add-detail]'), disabled: !!q('button[disabled]'), text: txt(q('.dish-detail__info')), badge: txt(q('.badge--danger'))});""")
     phase("dish.html?id=no-such-dish", ".state", """
       return JSON.stringify({text: txt(q('.state')), h1: txt(q('h1')), title: document.title, link: q('.state a') && q('.state a').getAttribute('href')});""")
-    phase("dish.html?id=syrniki", ".dish-detail", """
+    phase("dish.html?id=cheese-sauce", ".dish-detail", """
       return JSON.stringify({src: q('.dish-detail__media img').getAttribute('src'), alt: q('.dish-detail__media img').alt, allergens: txt(q('.allergens'))});""", "dish_placeholder")
     # 6. корзина
     phase("cart.html", ".cart-line", """

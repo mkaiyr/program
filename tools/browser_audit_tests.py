@@ -41,10 +41,10 @@ const audit = async () => {
   await Promise.race([Promise.all(qa('img').map(i => i.complete ? null : new Promise(r => { i.addEventListener('load', r); i.addEventListener('error', r); }))), wait(5000)]);
   const broken = qa('img').filter(i => i.complete && i.naturalWidth === 0).map(i => i.getAttribute('src'));
   const hrefs = [...new Set(qa('a[href]').map(a => a.href))];
-  const external = hrefs.filter(h => !h.startsWith(location.origin + PREFIX));
+  const external = hrefs.filter(h => !h.startsWith(location.origin + PREFIX) && !['https://www.openstreetmap.org/copyright', 'https://leafletjs.com/'].includes(h));   // согласованные внешние ссылки — авторство карты и библиотеки Leaflet
   const bad = [];
   for (const h of hrefs.filter(h => h.startsWith(location.origin + PREFIX))) { try { const r = await fetch(h); if (!r.ok) bad.push(h.replace(location.origin, '') + ' → ' + r.status); } catch (e) { bad.push(h + ' → сбой'); } }
-  const res = qa('script[src],link[href],img[src],source[src]').map(e => e.src || e.href).filter(u => u && !u.startsWith('data:') && !u.startsWith(location.origin + PREFIX));
+  const res = qa('script[src],link[href],img[src],source[src]').map(e => e.src || e.href).filter(u => u && !u.startsWith('data:') && !u.startsWith(location.origin + PREFIX) && !u.startsWith('https://tile.openstreetmap.org/'));   // и тайлы карты
   return { overflow: document.documentElement.scrollWidth > window.innerWidth + 1, broken, external, bad, extRes: res, links: hrefs.length, imgs: qa('img').length, h1: qa('h1').length, banner: txt(q('#demo-banner')), title: document.title };
 };
 const SEED = () => {
@@ -62,7 +62,7 @@ PAGES = [
     ("home", "index.html", ".cat-tile"), ("menu", "menu.html", "#grid .dish-card"), ("search", "menu.html?q=курица", "#grid .dish-card"), ("dish", "dish.html?id=cheeseburger", ".dish-detail"),
     ("dish_unavailable", "dish.html?id=onion-rings", ".dish-detail"), ("cart", "cart.html", ".cart-line"), ("checkout", "checkout.html", "#checkout-form"), ("payment", "payment.html?n=BS-261118-7001", "[data-pay-total]"),
     ("order", "order.html?n=BS-261118-7001", "[data-order-number]"), ("orders", "orders.html", ".order-row"), ("admin_login", "admin/login.html", "#login-btn"), ("admin_dashboard", "admin/index.html", ".stat-grid"),
-    ("admin_orders", "admin/orders.html?n=BS-261118-7001", "[data-detail-number]"), ("admin_menu", "admin/menu.html", "[data-dish]"),
+    ("admin_orders", "admin/orders.html?n=BS-261118-7001", "[data-detail-number]"), ("admin_menu", "admin/menu.html", "[data-dish]"), ("track_demo", "track-demo.html?speed=6", ".map-pin--courier"),
 ]
 
 def plan_for(width, height, tag):

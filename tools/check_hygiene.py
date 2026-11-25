@@ -19,7 +19,7 @@ SECRETS = [("JWT-токен", r"eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}"), ("�
 LOCAL = [("путь пользователя macOS", r"/Users/[A-Za-z0-9._-]+"), ("путь пользователя Linux", r"/home/[A-Za-z0-9._-]+/"), ("путь пользователя Windows", r"[A-Z]:\\Users\\")]
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
 OK_MAIL_DOMAINS = {"example.com", "example.org", "example.kz", "example.invalid"}
-ALLOWED_URLS = ("http://www.w3.org/2000/svg", "https://github.com/mkaiyr/", "https://mkaiyr.github.io/", "http://127.0.0.1", "http://localhost")
+ALLOWED_URLS = ("https://tile.openstreetmap.org/", "https://www.openstreetmap.org/copyright", "http://www.w3.org/2000/svg", "https://github.com/mkaiyr/", "https://mkaiyr.github.io/", "http://127.0.0.1", "http://localhost")
 
 files = [p for p in ROOT.rglob("*") if p.is_file() and not (set(p.relative_to(ROOT).parts) & SKIP_DIRS)]
 for p in files:
@@ -36,7 +36,7 @@ for p in files:
         if m: err(f"{rel}: {label} «{m.group(0)}»")
     for m in EMAIL.finditer(text):
         if m.group(1).lower() not in OK_MAIL_DOMAINS and not m.group(0).startswith(("noreply@",)): err(f"{rel}: адрес почты «{m.group(0)}» (допустимы только example.*)")
-    if rel.startswith("docs/") and not rel.startswith("docs/assets/fonts/"):   # тексты лицензий шрифтов содержат адреса, но это не ссылки страниц
+    if rel.startswith("docs/") and not rel.startswith(("docs/assets/fonts/", "docs/assets/vendor/")):   # тексты лицензий шрифтов содержат адреса, но это не ссылки страниц
         for m in re.finditer(r"https?://[^\s\"'<>)`]+", text):
             if not m.group(0).startswith(ALLOWED_URLS): err(f"{rel}: внешний адрес «{m.group(0)[:70]}» на публичной части")
 # публичная часть: только ожидаемое
@@ -44,7 +44,6 @@ for p in SITE.rglob("*") if SITE.exists() else []:
     if p.is_file() and p.suffix.lower() in {".py", ".swift", ".sh", ".env", ".pem", ".key", ".sql", ".log", ".bak", ".map", ".ini", ".zip"}: err(f"docs/{p.relative_to(SITE).as_posix()}: служебный файл не должен публиковаться")
     if p.is_dir() and p.name in {"registry", "tools", "tests", "node_modules", ".git"}: err(f"docs/{p.relative_to(SITE).as_posix()}: служебная папка внутри docs/")
 if not (SITE / ".nojekyll").exists(): err("docs/.nojekyll отсутствует")
-if (ROOT / ".git").exists(): print("ПРИМЕЧАНИЕ: в папке есть .git — репозиторий создан (по плану его пока быть не должно)")
 print(f"Проверено файлов: {len(files)}")
 for e in errors: print("ОШИБКА:", e)
 print("ИТОГ:", "гигиена репозитория в порядке" if not errors else f"ошибок: {len(errors)}")

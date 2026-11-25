@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-11-18",
+  "updated": "2026-11-25",
   "note": "Внутренний реестр. На сайте не показывается и не публикуется (лежит вне docs/). Репозиторий публичный: файл виден тем, кто открывает репозиторий на GitHub.",
   "verification_levels": {
     "ISO Republic / Foodiesfeed / Negative Space": "заявление CC0 на странице самого снимка у первоисточника (цитата и контрольная сумма страницы — в license_evidence), плюс страница лицензии сайта",
@@ -251,6 +251,47 @@
       "dish_name": "Пицца Пепперони"
     },
     {
+      "dish_id": "caesar",
+      "file": "caesar.webp",
+      "thumb": "caesar-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:NY_Pie_-_December_2024_-_Sarah_Stierch_10.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/d/dc/NY_Pie_-_December_2024_-_Sarah_Stierch_10.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "NY Pie - December 2024 - Sarah Stierch 10.jpg",
+      "author": "Missvain",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2024-12-22T06:22:07Z",
+      "commons_sha1": "571d1feb839be4757f8e3d471a2a7f4fbe325510",
+      "original_size": "3771x2828",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q76",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "ef1691e7c05cf7c35aa3c2c7f0db9659b0d903746dc9bb33ae17d304323b2f9c",
+      "file_sha256": "ff6ff8069f3fc87f7890408c58dfb1efcb981a1fef275aa68fcd20920b9561a3",
+      "thumb_sha256": "59e4506b0218ad200f27106e2c39a871b4b4fb11a4d899becdbb13ec9a05549b",
+      "dish_name": "Салат Цезарь",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "approximate",
+      "match_note": "салат Цезарь с крутонами и пармезаном; на снимке не видно куриного филе и помидора из описания блюда",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
       "dish_id": "greek-salad",
       "file": "greek-salad.webp",
       "thumb": "greek-salad-thumb.webp",
@@ -333,6 +374,47 @@
       "thumb_sha256": "1985e813086591be42b1b97c7848d3276781d07e98f2cb82eb1091df987b500e",
       "previous_source": "rawpixel (через Openverse)",
       "dish_name": "Овощной салат"
+    },
+    {
+      "dish_id": "pasta-chicken",
+      "file": "pasta-chicken.webp",
+      "thumb": "pasta-chicken-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Jacob%27s_Restaurant_-_December_2025_-_Sarah_Stierch_05.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/7/79/Jacob%27s_Restaurant_-_December_2025_-_Sarah_Stierch_05.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Jacob's Restaurant - December 2025 - Sarah Stierch 05.jpg",
+      "author": "Missvain",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2025-12-28T01:23:47Z",
+      "commons_sha1": "d5e04ce35083bb3b3065357aec19a4bd7a2251eb",
+      "original_size": "5712x4284",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.4, 0.55), увеличение ×1.4",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "85ca529528e53cb48e8bad9dfa54ae2c62ee0a8064b9196bee020ea9a1f16ff5",
+      "file_sha256": "7fa01a4742db368c764233e67b9670ec5fb6773784343642330ef2cee39cc6be",
+      "thumb_sha256": "d4c867d113255205cf3db4dfe4d939ebc5c627db2c6289cdeaff59c8685cf360",
+      "dish_name": "Паста с курицей",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "approximate",
+      "match_note": "куриная паста феттучине в сливочном соусе с чесночным хлебом; грибы из описания не различимы",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
     },
     {
       "dish_id": "pasta-bolognese",
@@ -532,6 +614,47 @@
       "dish_name": "Картофель по-деревенски"
     },
     {
+      "dish_id": "nuggets",
+      "file": "nuggets.webp",
+      "thumb": "nuggets-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Some_chicken_nuggets.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/d/d3/Some_chicken_nuggets.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Some chicken nuggets.jpg",
+      "author": "K1234567890y",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2014-01-16T23:00:05Z",
+      "commons_sha1": "e416adc16c1c5fad547be857de8632a6b700645d",
+      "original_size": "1768x1520",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "2484a667d24352093bafd613cb0ce7476bf8ea2436c3bf4bc101d08a3010e85e",
+      "file_sha256": "8b614c64d8be6a6242b682550669ec75e2d6bbaec5942d3ee541758592ffe889",
+      "thumb_sha256": "dc906db16c33fc6ccb4947c51c821d78384d0fce933a401af5d6a43423d3a81d",
+      "dish_name": "Куриные наггетсы",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "exact",
+      "match_note": "домашние наггетсы; 6 кусочков",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
       "dish_id": "wings",
       "file": "wings.webp",
       "thumb": "wings-thumb.webp",
@@ -574,43 +697,86 @@
       "dish_name": "Куриные крылышки"
     },
     {
+      "dish_id": "cheese-sticks",
+      "file": "cheese-sticks.webp",
+      "thumb": "cheese-sticks-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Round_Table_Pizza_-_October_2024_-_Sarah_Stierch.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Round_Table_Pizza_-_October_2024_-_Sarah_Stierch.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Round Table Pizza - October 2024 - Sarah Stierch.jpg",
+      "author": "Missvain",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2024-10-19T03:37:44Z",
+      "commons_sha1": "e32be7c0de1c597a6caabcb9f215eb1a21a53fc0",
+      "original_size": "4032x3024",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.4)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "9295f1fda5b5e47a93c0e3ed2efc130d64a261e35b5a294d7905f4b62187d7f4",
+      "file_sha256": "8ae49bbefc50e3086a4bec47a679c566f902b42ff76b17e5d891281f6e7dbc63",
+      "thumb_sha256": "00ce14d283e35638f51b393f8560bc90f4f7ba3b3050e47f27581baab574021e",
+      "dish_name": "Сырные палочки",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "exact",
+      "match_note": "",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
       "dish_id": "onion-rings",
       "file": "onion-rings.webp",
       "thumb": "onion-rings-thumb.webp",
       "source_type": "stock",
       "source_name": "Wikimedia Commons",
-      "source_url": "https://commons.wikimedia.org/wiki/File:Onion_Ring_Pakora.JPG",
-      "file_url": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Onion_Ring_Pakora.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-      "original_title": "Onion Ring Pakora.JPG",
-      "author": "Miansari66",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Beer_Battered_Onion_Rings_-_RV90_-_20241107-133409.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/7/76/Beer_Battered_Onion_Rings_-_RV90_-_20241107-133409.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Beer Battered Onion Rings - RV90 - 20241107-133409.jpg",
+      "author": "RegionVisitor90",
       "license": "CC0 1.0",
       "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
       "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
       "credit": "Own work",
-      "file_timestamp": "2011-08-22T07:55:32Z",
-      "commons_sha1": "0f0b805846d06781b737ed1b71f5a900aa5e852c",
-      "original_size": "1920x1440",
-      "retrieved_at": "2026-11-18",
-      "checked_by": "Claude (автоматическая проверка метаданных лицензии + визуальный отбор)",
+      "file_timestamp": "2024-11-22T22:56:38Z",
+      "commons_sha1": "033c718d667a8ca9f9a26542a7eb15e561c49ed8",
+      "original_size": "3024x4032",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
       "processing": {
-        "crop": "4:3, фокус (0.5, 0.5)",
+        "crop": "4:3, фокус (0.5, 0.25), увеличение ×1.2",
         "main": "1200x900 WebP q80",
         "thumb": "480x360 WebP q78",
         "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
       },
-      "original_sha256": "74bc2b43ad1bef3ac65c2ff7487894db368f69d75d4289c6ac60e20e41409575",
-      "file_sha256": "3b5e162376d5e0eca0673b4c48c3928b26e57a4ebaec875e9c4cb1305cf0d016",
-      "thumb_sha256": "ee2a88852baccbc599b2b6546abb7f761dd132dc8133754bc9cc5131d295c2a8",
+      "original_sha256": "a8887238c32c636bf688fb62ba8f546da8b4ab939a2eb48336b9ab1181a229ee",
+      "file_sha256": "e1fd44d61b8009455f3c921107a785c5a1cf9433564a089de1086b34b01e50b4",
+      "thumb_sha256": "5d8afade340d75856d4252b84c06b276605c532dd28ad2a9616591c7adec943a",
       "dish_name": "Луковые кольца",
       "license_evidence": {
         "commons_api": {
           "LicenseShortName": "CC0",
           "AttributionRequired": "false",
           "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
-          "rechecked": "2026-11-18"
+          "rechecked": "2026-11-25"
         }
       },
-      "previous_source": "Wikimedia Commons (без изменений, лицензия перепроверена)"
+      "match": "exact",
+      "match_note": "",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
     },
     {
       "dish_id": "americano",
@@ -739,6 +905,47 @@
       "dish_name": "Домашний лимонад"
     },
     {
+      "dish_id": "syrniki",
+      "file": "syrniki.webp",
+      "thumb": "syrniki-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:%D0%A1%D0%B8%D1%80%D0%BD%D0%B8%D0%BA%D0%B8_%D1%83_%D0%B3%D0%BE%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE-%D1%80%D0%B5%D1%81%D1%82%D0%BE%D1%80%D0%B0%D0%BD%D0%BD%D0%BE%D0%BC%D1%83_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D1%96_%22%D0%9C%D0%B8%D1%81%D0%BB%D0%B8%D0%B2%D1%81%D1%8C%D0%BA%D0%B8%D0%B9_%D0%B4%D0%B2%D1%96%D1%80%22._%D0%9A%D0%B8%D1%97%D0%B2.2025_1.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/%D0%A1%D0%B8%D1%80%D0%BD%D0%B8%D0%BA%D0%B8_%D1%83_%D0%B3%D0%BE%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE-%D1%80%D0%B5%D1%81%D1%82%D0%BE%D1%80%D0%B0%D0%BD%D0%BD%D0%BE%D0%BC%D1%83_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D1%96_%22%D0%9C%D0%B8%D1%81%D0%BB%D0%B8%D0%B2%D1%81%D1%8C%D0%BA%D0%B8%D0%B9_%D0%B4%D0%B2%D1%96%D1%80%22._%D0%9A%D0%B8%D1%97%D0%B2.2025_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Сирники у готельно-ресторанному комплексі \"Мисливський двір\". Київ.2025 1.jpg",
+      "author": "Мандрівниця",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2026-02-02T20:47:54Z",
+      "commons_sha1": "97d7ecd5734a299afdfe7c46dd30a3e3230b13c6",
+      "original_size": "3024x2744",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.4, 0.45), увеличение ×1.3",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "ae9cf2a17cfd041d1baf1087c855a96c66e158acd8237955690a3f35fd987454",
+      "file_sha256": "8751cad6296ded15b5ed202032efb01bc6d23b99f112ef478fb9e6ac02170698",
+      "thumb_sha256": "1ac1fbf56bdebe756b5cbbd2def86ee13fbb375e3fb5e91c84e90f5c4b182544",
+      "dish_name": "Сырники",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "approximate",
+      "match_note": "сырники со сметаной и ягодным соусом; на подаче есть попкорн и соус, которых нет в описании блюда",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
       "dish_id": "cheesecake",
       "file": "cheesecake.webp",
       "thumb": "cheesecake-thumb.webp",
@@ -779,45 +986,6 @@
       "thumb_sha256": "68eb03ac40162eda7160d135428ad059806743775ac8c039314e077c82618dd8",
       "previous_source": "rawpixel (через Openverse)",
       "dish_name": "Чизкейк"
-    },
-    {
-      "dish_id": "bbq-sauce",
-      "file": "bbq-sauce.webp",
-      "thumb": "bbq-sauce-thumb.webp",
-      "source_type": "stock",
-      "source_name": "Wikimedia Commons",
-      "source_url": "https://commons.wikimedia.org/wiki/File:BBQ_Sauce_Cookbook.png",
-      "file_url": "https://upload.wikimedia.org/wikipedia/commons/f/fa/BBQ_Sauce_Cookbook.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-      "original_title": "BBQ Sauce Cookbook.png",
-      "author": "QuickQuokka",
-      "license": "CC0 1.0",
-      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
-      "credit": "Own work",
-      "file_timestamp": "2022-03-16T17:03:37Z",
-      "commons_sha1": "b79184097656313a8909f004977090477b0e8831",
-      "original_size": "1920x1920",
-      "retrieved_at": "2026-11-18",
-      "checked_by": "Claude (автоматическая проверка метаданных лицензии + визуальный отбор)",
-      "processing": {
-        "crop": "4:3, фокус (0.5, 0.5)",
-        "main": "1200x900 WebP q80",
-        "thumb": "480x360 WebP q78",
-        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
-      },
-      "original_sha256": "91927349847bcabf5a45b8011313a9098f0ae27a71db5d190fc263b27ee9f6c7",
-      "file_sha256": "96583b146277e8ae881e8014fa434d057a56c1004a132b1d6733a6478d5ca305",
-      "thumb_sha256": "d64dd7c8cb2739ffeee87aed7cb2bbf2f68b50644c7dfa929d2d527b322a6f62",
-      "dish_name": "Соус барбекю",
-      "license_evidence": {
-        "commons_api": {
-          "LicenseShortName": "CC0",
-          "AttributionRequired": "false",
-          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
-          "rechecked": "2026-11-18"
-        }
-      },
-      "previous_source": "Wikimedia Commons (без изменений, лицензия перепроверена)"
     }
   ],
   "without_photo": [
@@ -827,39 +995,9 @@
       "reason": "нет подходящего фото: в свободных источниках нет снимка пиццы, на котором курица очевидна (найденные — любительские кадры с другими начинками)"
     },
     {
-      "dish_id": "pasta-chicken",
-      "dish_name": "Паста с курицей",
-      "reason": "нет подходящего фото: найденная паста — с креветками или без курицы; подставлять другое блюдо нельзя"
-    },
-    {
       "dish_id": "grilled-vegetables",
       "dish_name": "Овощи гриль",
       "reason": "нет подходящего фото: найдены только мясо на гриле, шашлык и кадры низкого качества"
-    },
-    {
-      "dish_id": "cheese-sticks",
-      "dish_name": "Сырные палочки",
-      "reason": "нет подходящего фото: «сырные палочки» в свободных источниках — снэки из теста или любительские кадры с упаковкой бренда"
-    },
-    {
-      "dish_id": "syrniki",
-      "dish_name": "Сырники",
-      "reason": "нет подходящего фото: найдены американские панкейки и блины с творогом — это другие блюда"
-    },
-    {
-      "dish_id": "cheese-sauce",
-      "dish_name": "Сырный соус",
-      "reason": "нет подходящего фото: найдены только бутылки с торговой маркой, начос и сэндвичи"
-    },
-    {
-      "dish_id": "nuggets",
-      "dish_name": "Куриные наггетсы",
-      "reason": "фото отклонено по качеству: единственный подходящий кадр (курица в панировке) тёмный, засвеченный и малоаппетитный; остальные — растительные «Impossible», детские фигурки и упаковка бренда"
-    },
-    {
-      "dish_id": "caesar",
-      "dish_name": "Салат Цезарь",
-      "reason": "нет подтверждаемого фото: снимок из PxHere не удалось подтвердить (сервер изображений PxHere не отвечает, HTTP 521), подходящей замены с проверяемой лицензией для салата «Цезарь» не найдено"
     },
     {
       "dish_id": "black-tea",
@@ -870,6 +1008,16 @@
       "dish_id": "blini",
       "dish_name": "Блины со сгущёнкой",
       "reason": "нет подтверждаемого фото: снимок из PxHere не удалось подтвердить (HTTP 521); на первоисточниках CC0 блинов не найдено"
+    },
+    {
+      "dish_id": "cheese-sauce",
+      "dish_name": "Сырный соус",
+      "reason": "нет подходящего фото: в свободных источниках только бутылки с торговой маркой, начос и сэндвичи; по решению владельца пока заглушка, требования — registry/SAUCE_PHOTO_REQUIREMENTS.md"
+    },
+    {
+      "dish_id": "bbq-sauce",
+      "dish_name": "Соус барбекю",
+      "reason": "фото снято по решению владельца: на снимке была стеклянная банка (требование — не банки, упаковки и бутылки); новое фото в едином ресторанном стиле будет добавлено позже, требования — registry/SAUCE_PHOTO_REQUIREMENTS.md; до этого показывается заглушка"
     }
   ],
   "rejected_groups": [
@@ -1076,6 +1224,82 @@
       "why": "PxHere, HTTP 521: подтвердить нельзя; подходящей замены с проверяемой лицензией нет",
       "was": "rawpixel — Free crepe image",
       "now": "заглушка"
+    },
+    {
+      "dish_id": "pasta-chicken",
+      "dish_name": "Паста с курицей",
+      "action": "заменён снимок",
+      "why": "лучшее соответствие блюду",
+      "was": "Wikimedia Commons — Jacob's Restaurant - December 2025 - Sarah Stierch 05.jpg",
+      "now": "Wikimedia Commons — Jacob's Restaurant - December 2025 - Sarah Stierch 05.jpg"
+    },
+    {
+      "dish_id": "syrniki",
+      "dish_name": "Сырники",
+      "action": "заменён снимок",
+      "why": "лучшее соответствие блюду",
+      "was": "Wikimedia Commons — Сирники у готельно-ресторанному комплексі \"Мисливський двір\". Київ.2025 1.jpg",
+      "now": "Wikimedia Commons — Сирники у готельно-ресторанному комплексі \"Мисливський двір\". Київ.2025 1.jpg"
+    },
+    {
+      "dish_id": "onion-rings",
+      "dish_name": "Луковые кольца",
+      "action": "заменён снимок",
+      "why": "прежний снимок — индийская пакора (другое блюдо); Honest Burgers отклонён: в кадре бренд ресторана",
+      "was": "Wikimedia Commons — Onion Ring Pakora.JPG",
+      "now": "Wikimedia Commons — Beer Battered Onion Rings - RV90 - 20241107-133409.jpg"
+    }
+  ],
+  "removed_photos": [
+    {
+      "dish_id": "bbq-sauce",
+      "dish_name": "Соус барбекю",
+      "removed": "2026-11-25",
+      "why": "банка вместо соуса в соуснице — не соответствует требованиям владельца",
+      "was": "Wikimedia Commons — BBQ Sauce Cookbook.png",
+      "files_archived": [
+        "registry/removed-photos/bbq-sauce.webp",
+        "registry/removed-photos/bbq-sauce-thumb.webp"
+      ],
+      "entry": {
+        "dish_id": "bbq-sauce",
+        "file": "bbq-sauce.webp",
+        "thumb": "bbq-sauce-thumb.webp",
+        "source_type": "stock",
+        "source_name": "Wikimedia Commons",
+        "source_url": "https://commons.wikimedia.org/wiki/File:BBQ_Sauce_Cookbook.png",
+        "file_url": "https://upload.wikimedia.org/wikipedia/commons/f/fa/BBQ_Sauce_Cookbook.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "original_title": "BBQ Sauce Cookbook.png",
+        "author": "QuickQuokka",
+        "license": "CC0 1.0",
+        "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+        "credit": "Own work",
+        "file_timestamp": "2022-03-16T17:03:37Z",
+        "commons_sha1": "b79184097656313a8909f004977090477b0e8831",
+        "original_size": "1920x1920",
+        "retrieved_at": "2026-11-18",
+        "checked_by": "Claude (автоматическая проверка метаданных лицензии + визуальный отбор)",
+        "processing": {
+          "crop": "4:3, фокус (0.5, 0.5)",
+          "main": "1200x900 WebP q80",
+          "thumb": "480x360 WebP q78",
+          "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+        },
+        "original_sha256": "91927349847bcabf5a45b8011313a9098f0ae27a71db5d190fc263b27ee9f6c7",
+        "file_sha256": "96583b146277e8ae881e8014fa434d057a56c1004a132b1d6733a6478d5ca305",
+        "thumb_sha256": "d64dd7c8cb2739ffeee87aed7cb2bbf2f68b50644c7dfa929d2d527b322a6f62",
+        "dish_name": "Соус барбекю",
+        "license_evidence": {
+          "commons_api": {
+            "LicenseShortName": "CC0",
+            "AttributionRequired": "false",
+            "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+            "rechecked": "2026-11-18"
+          }
+        },
+        "previous_source": "Wikimedia Commons (без изменений, лицензия перепроверена)"
+      }
     }
   ]
 }

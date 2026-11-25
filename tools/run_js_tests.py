@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
 SITE, TESTS = ROOT / "docs", ROOT / "tests" / "js"
-MODULES = ["format", "allergens", "search", "pricing", "cart-logic", "html", "validation", "orders-logic", "admin-logic"]   # порядок важен: модуль использует имена предыдущих
+MODULES = ["format", "allergens", "search", "pricing", "cart-logic", "html", "validation", "orders-logic", "admin-logic", "courier-demo", "catalog-source"]   # порядок важен: модуль использует имена предыдущих
 if not shutil.which("osascript"):
     print("ПРЕДУПРЕЖДЕНИЕ: osascript недоступен (не macOS) — JavaScript-тесты пропущены"); sys.exit(0)
 
@@ -25,6 +25,7 @@ def strip_module(src: str) -> str:
 menu = json.loads((SITE / "data" / "menu.json").read_text(encoding="utf-8"))
 ing = json.loads((SITE / "data" / "ingredients.json").read_text(encoding="utf-8"))
 settings = json.loads((SITE / "data" / "settings.json").read_text(encoding="utf-8"))
+routes = json.loads((SITE / "data" / "demo-routes.json").read_text(encoding="utf-8"))
 expected = {}
 for d in menu["dishes"]:   # независимый расчёт аллергенов блюда на Python
     contains, may = set(), set()
@@ -42,14 +43,15 @@ const assert = {
   equal(a, b, m) { if (a !== b) throw new Error((m ? m + ": " : "") + "ожидалось " + JSON.stringify(b) + ", получено " + JSON.stringify(a)); },
   deepEqual(a, b, m) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error((m ? m + ": " : "") + "ожидалось " + JSON.stringify(b) + ", получено " + JSON.stringify(a)); },
   includes(h, n, m) { if (!String(h).includes(n)) throw new Error((m ? m + ": " : "") + "нет «" + n + "» в «" + String(h).slice(0, 160) + "»"); },
+  throws(fn, re) { let err = null; try { fn(); } catch (e) { err = e; } if (!err) throw new Error("ожидалось исключение"); if (re && !re.test(String(err.message))) throw new Error("исключение «" + err.message + "» не подходит под " + re); },
   excludes(h, n, m) { if (String(h).includes(n)) throw new Error((m ? m + ": " : "") + "найдено лишнее «" + n + "»"); },
 };
-const DATA = { menu: __MENU__, ingredients: __ING__.ingredients, allergenList: __ING__.allergens, settings: __SETTINGS__ };
+const DATA = { menu: __MENU__, ingredients: __ING__.ingredients, allergenList: __ING__.allergens, settings: __SETTINGS__, routes: __ROUTES__ };
 DATA.dishesById = Object.fromEntries(DATA.menu.dishes.map((d) => [d.id, d]));
 DATA.categoriesById = Object.fromEntries(DATA.menu.categories.map((c) => [c.id, c]));
 const EXPECTED_ALLERGENS = __EXPECTED__;
 """
-harness = harness.replace("__MENU__", json.dumps(menu)).replace("__ING__", json.dumps(ing)).replace("__SETTINGS__", json.dumps(settings)).replace("__EXPECTED__", json.dumps(expected))
+harness = harness.replace("__MENU__", json.dumps(menu)).replace("__ING__", json.dumps(ing)).replace("__SETTINGS__", json.dumps(settings)).replace("__ROUTES__", json.dumps(routes)).replace("__EXPECTED__", json.dumps(expected))
 parts = [harness]
 for m in MODULES: parts.append(f"// ---- {m}.js\n" + strip_module((SITE / "assets" / "js" / f"{m}.js").read_text(encoding="utf-8")))
 for t in sorted(TESTS.glob("*.test.js")): parts.append(f"// ---- {t.name}\n{{\n" + t.read_text(encoding="utf-8") + "\n}")   # свой блок на файл: константы тестов не конфликтуют

@@ -269,7 +269,13 @@
       ],
       "recommended": true,
       "available": true,
-      "photo": null,
+      "photo": {
+        "file": "caesar.webp",
+        "thumb": "caesar-thumb.webp",
+        "alt": "Салат Цезарь",
+        "width": 1200,
+        "height": 900
+      },
       "sort": 8
     },
     {
@@ -350,7 +356,13 @@
       ],
       "recommended": false,
       "available": true,
-      "photo": null,
+      "photo": {
+        "file": "pasta-chicken.webp",
+        "thumb": "pasta-chicken-thumb.webp",
+        "alt": "Паста с курицей",
+        "width": 1200,
+        "height": 900
+      },
       "sort": 11
     },
     {
@@ -529,7 +541,13 @@
       ],
       "recommended": false,
       "available": true,
-      "photo": null,
+      "photo": {
+        "file": "nuggets.webp",
+        "thumb": "nuggets-thumb.webp",
+        "alt": "Куриные наггетсы",
+        "width": 1200,
+        "height": 900
+      },
       "sort": 18
     },
     {
@@ -573,7 +591,13 @@
       ],
       "recommended": true,
       "available": true,
-      "photo": null,
+      "photo": {
+        "file": "cheese-sticks.webp",
+        "thumb": "cheese-sticks-thumb.webp",
+        "alt": "Сырные палочки",
+        "width": 1200,
+        "height": 900
+      },
       "sort": 20
     },
     {
@@ -716,7 +740,13 @@
       ],
       "recommended": false,
       "available": true,
-      "photo": null,
+      "photo": {
+        "file": "syrniki.webp",
+        "thumb": "syrniki-thumb.webp",
+        "alt": "Сырники",
+        "width": 1200,
+        "height": 900
+      },
       "sort": 26
     },
     {
@@ -803,13 +833,7 @@
       ],
       "recommended": false,
       "available": true,
-      "photo": {
-        "file": "bbq-sauce.webp",
-        "thumb": "bbq-sauce-thumb.webp",
-        "alt": "Соус барбекю",
-        "width": 1200,
-        "height": 900
-      },
+      "photo": null,
       "sort": 30
     }
   ]

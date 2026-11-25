@@ -25,7 +25,7 @@ test("блюдо в корзине: вместо кнопки счётчик", (
 });
 test("фото: у блюда с фото своя картинка, у блюда без фото — заглушка", () => {
   assert.includes(photoTag(DATA.dishesById["fries"], ctx(), "thumb"), "fries-thumb.webp");
-  const ph = photoTag(DATA.dishesById["syrniki"], ctx(), "thumb"); assert.includes(ph, "placeholder-dish.svg"); assert.includes(ph, "Фото скоро появится");
+  const ph = photoTag(DATA.dishesById["cheese-sauce"], ctx(), "thumb"); assert.includes(ph, "placeholder-dish.svg"); assert.includes(ph, "Фото скоро появится");
   assert.excludes(photoTag(DATA.dishesById["fries"], ctx(), "thumb"), "placeholder");
 });
 test("у каждой картинки есть alt, ширина и высота (без прыжков вёрстки)", () => {

@@ -172,6 +172,35 @@ print(f"Блюд: {len(dishes)}; категорий: {len(cats)}; ингреди
 print("По категориям:", ", ".join(f"{c['name']} — {per_cat[c['id']]}" for c in cats))
 print(f"Рекомендуем: {sum(d['recommended'] for d in dishes)}; недоступно: {unavailable}")
 print("Блюд с аллергенами «содержит»:", sum(1 for a in derived.values() if "contains" in a.values()), "из", len(dishes))
+# ---------- демо-маршруты (карта и виртуальный курьер) ----------
+import math
+def _hav(a, b):
+    r = 6371008.8; p1, p2 = math.radians(a[0]), math.radians(b[0]); dl = math.radians(b[1] - a[1]); dp = p2 - p1
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(min(1, math.sqrt(h)))
+ALMATY = (43.1, 43.4, 76.7, 77.1)   # широта от/до, долгота от/до
+inb = lambda p: ALMATY[0] < p[0] < ALMATY[1] and ALMATY[2] < p[1] < ALMATY[3]
+try: routes = json.loads((DATA / "demo-routes.json").read_text(encoding="utf-8"))
+except Exception as e: routes = None; err(f"demo-routes.json: не читается ({e})")
+if routes:
+    mp = routes.get("map", {})
+    if not all(k in mp for k in ("center", "zoom", "tileUrl", "attribution", "attributionUrl")): err("demo-routes.json: в map нет center/zoom/tileUrl/attribution/attributionUrl")
+    if not str(mp.get("tileUrl", "")).startswith("https://") or not all(x in str(mp.get("tileUrl")) for x in ("{z}", "{x}", "{y}")): err("demo-routes.json: tileUrl — https-адрес с {z}/{x}/{y}")
+    cafe = routes.get("cafe", {})
+    if not inb((cafe.get("lat", 0), cafe.get("lon", 0))): err("demo-routes.json: кафе вне Алматы")
+    ds = routes.get("destinations", [])
+    if len(ds) < 4: err("demo-routes.json: нужно не меньше 4 тестовых точек")
+    if len({d.get("id") for d in ds}) != len(ds): err("demo-routes.json: id точек повторяются")
+    for d in ds:
+        i, rt = d.get("id"), d.get("route", [])
+        if len(rt) < 20 or not all(isinstance(p, list) and len(p) == 2 and inb(p) for p in rt): err(f"demo-routes.json «{i}»: мало точек или точка вне Алматы"); continue
+        if _hav(rt[0], (cafe["lat"], cafe["lon"])) > 5: err(f"demo-routes.json «{i}»: маршрут начинается не у кафе")
+        if _hav(rt[-1], (d["lat"], d["lon"])) > 5: err(f"demo-routes.json «{i}»: маршрут заканчивается не в точке назначения")
+        ln = sum(_hav(rt[k - 1], rt[k]) for k in range(1, len(rt)))
+        if abs(ln - d.get("distanceM", 0)) / max(1, d.get("distanceM", 1)) > 0.05: err(f"demo-routes.json «{i}»: длина ломаной {round(ln)} м, заявлено {d.get('distanceM')} м")
+        if not d.get("durationS", 0) > 0 or not str(d.get("note", "")).startswith("Тестовая точка"): err(f"demo-routes.json «{i}»: нет времени или пометки «Тестовая точка»")
+        if ln < _hav(rt[0], rt[-1]) * 0.999: err(f"demo-routes.json «{i}»: маршрут короче прямой — данные испорчены")
+    print(f"Демо-маршрутов: {len(ds)}; точек геометрии: {sum(len(d.get('route', [])) for d in ds)}")
 for w in warnings: print("ПРЕДУПРЕЖДЕНИЕ:", w)
 for e in errors: print("ОШИБКА:", e)
 print("ИТОГ:", "данные корректны" if not errors else f"ошибок: {len(errors)}")

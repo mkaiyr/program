@@ -40,7 +40,7 @@ export async function mountLayout() {
       <p><strong>${esc(cafe.name)}</strong> — демонстрационный проект. Контакты ниже условные.</p>
       <p class="small">${esc(cafe.address ?? "")} · ${esc(cafe.phone ?? "")}</p>
       <p class="small">Заказы не принимаются, платежи не выполняются, данные сохраняются только в вашем браузере.</p>
-      <p class="small"><a href="${url("admin/login.html")}">Демо-админка</a></p></div>`;
+      <p class="small"><a href="${url("track-demo.html")}">Демо: отслеживание доставки</a> · <a href="${url("admin/login.html")}">Демо-админка</a></p></div>`;
   }
   let dishesById = null;   // после загрузки меню счётчик не учитывает чужие и удалённые блюда
   const paint = () => {

@@ -54,10 +54,26 @@ MUTANTS = [
     # ---- этап 6: аудит страниц ----
     ("битая ссылка в корзине", JS + "pages/cart.js", 'href="${url("menu.html")}">← Продолжить выбор', 'href="${url("menu-old.html")}">← Продолжить выбор'),
     ("внешняя ссылка в подвале сайта", JS + "layout.js", '<a href="${url("admin/login.html")}">Демо-админка</a>', '<a href="https://example.com/">Демо-админка</a>'),
+    # ---- этап 8: демо-карта и виртуальный курьер ----
+    ("[карта] курьер едет по прямой, а не по дороге", JS + "courier-demo.js", "lat: a[0] + (b[0] - a[0]) * t, lon: a[1] + (b[1] - a[1]) * t,", "lat: path.points[0][0] + (path.points[path.points.length - 1][0] - path.points[0][0]) * (d / path.length), lon: path.points[0][1] + (path.points[path.points.length - 1][1] - path.points[0][1]) * (d / path.length),"),
+    ("[карта] на паузе курьер продолжает ехать", JS + "courier-demo.js", 'this.phase === "running" ? this.base +', 'this.phase !== "idle" ? this.base +'),
+    ("[карта] сброс не возвращает курьера к кафе", JS + "courier-demo.js", 'reset() { this.phase = "idle"; this.base = 0; this.runFrom = 0; }', 'reset() { this.phase = "idle"; this.runFrom = 0; }'),
+    ("[карта] после доставки нельзя запустить снова", JS + "courier-demo.js", 'if (this.phase === "running") return false;\n    this.phase = "running"; this.base = 0;', 'if (this.phase !== "idle") return false;\n    this.phase = "running"; this.base = 0;'),
+    ("[карта] этап «почти у клиента» никогда не наступает", JS + "courier-demo.js", 'remaining <= ALMOST_M(this.path.length) ? "almost" : "on_the_way"', '"on_the_way"'),
+    ("[карта] настоящий GPS подменён заглушкой", JS + "courier-demo.js", 'export function createRealProvider() { throw new Error(', 'export function createRealProvider() { return { source: "real_courier" }; throw new Error('),
+    ("[карта] демо пишет в корзину покупателя", JS + "pages/track-demo.js", 'const DEMO_ORDER = "DEMO-0001";', 'const DEMO_ORDER = "DEMO-0001"; localStorage.setItem("bistro.cart.v1", "{}");'),
+    ("[карта] маршрут нарисован прямой линией", JS + "pages/track-demo.js", "L.polyline(routeObj.route,", "L.polyline([routeObj.route[0], routeObj.route[routeObj.route.length - 1]],"),
+    ("[карта] убрано авторство OpenStreetMap", JS + "pages/track-demo.js", 'attribution: `<a href="${esc(m.attributionUrl)}" target="_blank" rel="noopener">${esc(m.attribution)}</a>`', 'attribution: ""'),
+    ("[карта] метка «ДЕМО-РЕЖИМ» на карте скрыта", JS + "pages/track-demo.js", 'tag.textContent = "ДЕМО-РЕЖИМ";', 'tag.textContent = "ДЕМО-РЕЖИМ"; tag.hidden = true;'),
+    # ---- единый каталог: контракт ----
+    ("[каталог] проверка принимает повторяющиеся id блюд", JS + "catalog-source.js", "    if (ids.has(d.id)) errors.push(`${at}: id повторяется`); ids.add(d.id);", "    ids.add(d.id);"),
+    ("[каталог] цена-строка проходит проверку", JS + "catalog-source.js", "if (!Number.isInteger(d.price) || d.price <= 0)", "if (d.price <= 0)"),
+    ("[каталог] скрытые блюда попадают в публичное меню", JS + "catalog-source.js", "export const publicDishes = (dishes) => dishes.filter((d) => d.active !== false);", "export const publicDishes = (dishes) => dishes;"),
+    ("[каталог] источник api «работает» без сервера", JS + "catalog-source.js", '  if (mode === "api") throw new Error(', '  if (false) throw new Error('),
 ]
 quick = "--quick" in sys.argv
 # Сначала убеждаемся, что на целой копии тесты проходят: иначе «пойманные» поломки ничего не доказывают
-for label, cmd in (("JS-тесты", [sys.executable, str(T / "run_js_tests.py")]), ("браузерные тесты оформления", [sys.executable, str(T / "browser_checkout_tests.py"), "--quick"]), ("браузерные тесты админки", [sys.executable, str(T / "browser_admin_tests.py"), "--quick"])):
+for label, cmd in (("JS-тесты", [sys.executable, str(T / "run_js_tests.py")]), ("браузерные тесты оформления", [sys.executable, str(T / "browser_checkout_tests.py"), "--quick"]), ("браузерные тесты админки", [sys.executable, str(T / "browser_admin_tests.py"), "--quick"]), ("аудит страниц", [sys.executable, str(T / "browser_audit_tests.py"), "--quick"]), ("браузерные тесты карты", [sys.executable, str(T / "browser_map_tests.py"), "--quick"])):
     if subprocess.run(cmd, capture_output=True, text=True).returncode != 0: print(f"ОШИБКА: {label} не проходят на неизменённом сайте — контрольные поломки не запускались"); sys.exit(1)
 survived, caught = [], []
 ONLY = sys.argv[sys.argv.index("--only") + 1] if "--only" in sys.argv else None   # --only ТЕКСТ: только поломки, в названии которых есть ТЕКСТ
@@ -77,6 +93,7 @@ for name, rel, old, new in MUTANTS:
         if r.returncode != 0: by = "браузерные тесты оформления"
         elif subprocess.run([sys.executable, str(T / "browser_admin_tests.py"), "--root", str(work), "--quick"], capture_output=True, text=True).returncode != 0: by = "браузерные тесты админки"
         elif subprocess.run([sys.executable, str(T / "browser_audit_tests.py"), "--root", str(work), "--quick"], capture_output=True, text=True).returncode != 0: by = "аудит страниц"
+        elif subprocess.run([sys.executable, str(T / "browser_map_tests.py"), "--root", str(work), "--quick"], capture_output=True, text=True).returncode != 0: by = "браузерные тесты карты"
         elif not quick:
             r = subprocess.run([sys.executable, str(T / "browser_tests.py"), "--root", str(work), "--quick"], capture_output=True, text=True)
             if r.returncode != 0: by = "браузерные тесты сайта"

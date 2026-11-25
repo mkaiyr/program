@@ -1,0 +1,178 @@
+-- ЧЕРНОВИК ДЛЯ РЕВЬЮ. НЕ ПРИМЕНЯТЬ. Не выполнялся и не проверен на синтаксис.
+-- =====================================================================
+-- 21. Технологические карты и складские операции продаж: списание, отмена, возврат пригодных продуктов, потери
+-- Зависимости: 11 (place_order, void_order), 19, 20. МИГРАЦИЯ 11 НЕ МЕНЯЕТСЯ: place_order и void_order остаются как есть, склад подключается триггерами
+-- в той же транзакции (ошибка триггера откатывает весь заказ — атомарность).
+-- Правила (решения владельца):
+--   * карта заполнена и продуктов не хватает  → продажа БЛОКИРУЕТСЯ (INSUFFICIENT_STOCK с понятным текстом);
+--   * карты нет (или она пуста)               → продажа проходит, ничего не списывается, предупреждение сохраняется (order_stock_ops.warning)
+--                                                и показывается кассиру (stock_check_items / order_stock_info); это НЕ подтверждение наличия;
+--   * отмена ДО начала приготовления (orders.status = 'accepted') → автоматический возврат всего списанного, один раз;
+--   * отмена ПОСЛЕ начала приготовления / возврат готового заказа → склад не меняется; остаются stock_return_selected (пригодные продукты)
+--     и stock_write_off (потери), обе с причиной и количеством.
+-- =====================================================================
+begin;
+
+create table if not exists public.recipe_lines (
+  menu_item_id bigint not null references public.menu_items (id) on delete cascade,
+  product_id   bigint not null references public.stock_products (id) on delete restrict,
+  qty          numeric(14, 3) not null check (qty > 0),
+  unit         text not null check (unit in ('кг', 'г', 'л', 'мл', 'шт.')),
+  primary key (menu_item_id, product_id)
+);
+alter table public.recipe_lines enable row level security;
+-- Реальные рецептуры вносит владелец через интерфейс; миграция данных в таблицу НЕ добавляет.
+
+alter table public.orders add column if not exists source text not null default 'pos' check (source in ('pos', 'web'));
+
+-- Что уже сделано складом по заказу: по одной записи каждого вида — защита от повторного списания и повторной автоматической отмены на уровне БД
+create table if not exists public.order_stock_ops (
+  order_id   bigint not null references public.orders (id) on delete restrict,
+  kind       text not null check (kind in ('sale', 'cancel')),
+  warning    jsonb,                           -- например {"no_recipe": ["Чай"]}
+  created_at timestamptz not null default now(),
+  primary key (order_id, kind)
+);
+alter table public.order_stock_ops enable row level security;
+
+-- ---------- Расчёт и списание ----------
+create or replace function public._stock_apply_sale(p_order_id bigint)
+returns void language plpgsql security definer set search_path = '' as $$
+declare r record; v_missing text[];
+begin
+  insert into public.order_stock_ops (order_id, kind) values (p_order_id, 'sale') on conflict do nothing;
+  if not found then return; end if;                                   -- уже списано: повтор ничего не меняет
+  select array_agg(distinct i.item_name) into v_missing
+    from public.order_items i where i.order_id = p_order_id
+     and not exists (select 1 from public.recipe_lines rl where rl.menu_item_id = i.menu_item_id);
+  if v_missing is not null then
+    update public.order_stock_ops set warning = jsonb_build_object('no_recipe', to_jsonb(v_missing)) where order_id = p_order_id and kind = 'sale';
+  end if;
+  for r in select rl.product_id, sum(public.convert_qty(rl.qty * i.quantity, rl.unit, p.unit)) as qty
+             from public.order_items i join public.recipe_lines rl on rl.menu_item_id = i.menu_item_id join public.stock_products p on p.id = rl.product_id
+            where i.order_id = p_order_id group by rl.product_id order by rl.product_id loop     -- порядок по id: нет взаимных блокировок
+    perform public._stock_post(r.product_id, -r.qty, 'sale', p_order_id, null, null);
+  end loop;
+end;
+$$;
+
+-- Автоматическая отмена: только если приготовление не началось. Иначе — ничего (нужны stock_return_selected / stock_write_off).
+create or replace function public._stock_cancel_before_cooking(p_order_id bigint)
+returns void language plpgsql security definer set search_path = '' as $$
+declare r record;
+begin
+  if not exists (select 1 from public.order_stock_ops where order_id = p_order_id and kind = 'sale') then return; end if;
+  insert into public.order_stock_ops (order_id, kind) values (p_order_id, 'cancel') on conflict do nothing;
+  if not found then return; end if;
+  for r in select m.product_id, -sum(m.delta) as left_qty from public.stock_movements m
+            where m.order_id = p_order_id and m.kind in ('sale', 'cancel', 'return') group by m.product_id having -sum(m.delta) > 0 order by m.product_id loop
+    perform public._stock_post(r.product_id, r.left_qty, 'cancel', p_order_id, null, null);
+  end loop;
+end;
+$$;
+
+-- Триггеры (атомарно с place_order / void_order)
+create or replace function public._trg_order_items_stock() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare r record;
+begin
+  for r in select distinct n.order_id from new_items n join public.orders o on o.id = n.order_id where o.source = 'pos' order by 1 loop
+    perform public._stock_apply_sale(r.order_id);       -- заказы сайта (source = 'web') склад при создании не трогают: списание при принятии (23)
+  end loop;
+  return null;
+end;
+$$;
+drop trigger if exists order_items_stock on public.order_items;
+create trigger order_items_stock after insert on public.order_items referencing new table as new_items for each statement execute function public._trg_order_items_stock();
+
+create or replace function public._trg_order_void_stock() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if old.voided_at is null and new.voided_at is not null and new.status = 'accepted' then
+    perform public._stock_cancel_before_cooking(new.id);
+  end if;
+  return null;
+end;
+$$;
+drop trigger if exists orders_void_stock on public.orders;
+create trigger orders_void_stock after update of voided_at on public.orders for each row execute function public._trg_order_void_stock();
+-- ВОПРОС РЕВЬЮ: status = 'accepted' означает, что ни одна станция не начала готовить (см. _refresh_order_status). Подтвердить на тестовой БД.
+
+-- ---------- Для кассы: понятное сообщение ДО оформления ----------
+-- Для каждой позиции корзины: ok / insufficient (с перечнем «чего не хватает») / no_recipe. Продажа при insufficient будет заблокирована сервером.
+create or replace function public.stock_check_items(p_items jsonb)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_active_staff() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  return (
+    with items as (select x.menu_item_id, x.quantity from jsonb_to_recordset(p_items) as x(menu_item_id bigint, quantity integer)),
+    need as (select rl.product_id, sum(public.convert_qty(rl.qty * i.quantity, rl.unit, p.unit)) as qty
+               from items i join public.recipe_lines rl on rl.menu_item_id = i.menu_item_id join public.stock_products p on p.id = rl.product_id group by rl.product_id),
+    short as (select p.name, n.qty as need, p.stock as have, p.unit from need n join public.stock_products p on p.id = n.product_id where p.stock < n.qty)
+    select jsonb_build_object(
+      'blocked', exists (select 1 from short),
+      'message', (select string_agg(format('%s: нужно %s %s, есть %s %s', name, need, unit, have, unit), '; ') from short),
+      'no_recipe', (select coalesce(jsonb_agg(m.name), '[]'::jsonb) from items i join public.menu_items m on m.id = i.menu_item_id
+                     where not exists (select 1 from public.recipe_lines rl where rl.menu_item_id = i.menu_item_id)));
+end;
+$$;
+
+create or replace function public.order_stock_info(p_order_id bigint)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_active_staff() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  return jsonb_build_object('order_id', p_order_id, 'deducted', exists (select 1 from public.order_stock_ops where order_id = p_order_id and kind = 'sale'),
+    'warning', (select warning from public.order_stock_ops where order_id = p_order_id and kind = 'sale'),
+    'auto_cancelled', exists (select 1 from public.order_stock_ops where order_id = p_order_id and kind = 'cancel'));
+end;
+$$;
+
+-- ---------- Администратор: технологические карты, возврат пригодных продуктов, потери ----------
+create or replace function public.admin_set_recipe(p_item_id bigint, p_lines jsonb)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_active_admin() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  delete from public.recipe_lines where menu_item_id = p_item_id;                           -- прошлые продажи не затрагиваются: их движения уже записаны
+  insert into public.recipe_lines (menu_item_id, product_id, qty, unit)
+  select p_item_id, x.product_id, x.qty, x.unit from jsonb_to_recordset(coalesce(p_lines, '[]'::jsonb)) as x(product_id bigint, qty numeric, unit text);
+  return jsonb_build_object('item_id', p_item_id, 'lines', (select count(*) from public.recipe_lines where menu_item_id = p_item_id));
+end;
+$$;
+-- ВОПРОС РЕВЬЮ: в окончательной версии проверять совместимость единиц карты и продукта (convert_qty), иначе ошибка проявится только при продаже.
+
+create or replace function public.stock_return_selected(p_order_id bigint, p_ref uuid, p_lines jsonb, p_reason text)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare r record; v_left numeric;
+begin
+  if not public.is_active_admin() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  if length(btrim(coalesce(p_reason, ''))) < 3 then raise exception using errcode = '22023', message = 'REASON_REQUIRED'; end if;
+  if exists (select 1 from public.stock_movements where order_id = p_order_id and kind = 'return' and reason like p_ref::text || '%') then
+    return jsonb_build_object('order_id', p_order_id, 'duplicate', true);                    -- повтор с тем же ключом (ref) не меняет остатки
+  end if;
+  for r in select x.product_id, x.qty from jsonb_to_recordset(p_lines) as x(product_id bigint, qty numeric) order by x.product_id loop
+    select coalesce(-sum(m.delta), 0) into v_left from public.stock_movements m where m.order_id = p_order_id and m.product_id = r.product_id and m.kind in ('sale', 'cancel', 'return');
+    if r.qty <= 0 or r.qty > v_left then raise exception using errcode = 'P0001', message = 'RETURN_EXCEEDS', detail = r.product_id::text; end if;
+    perform public._stock_post(r.product_id, r.qty, 'return', p_order_id, null, p_ref::text || ' ' || btrim(p_reason));
+  end loop;
+  return jsonb_build_object('order_id', p_order_id, 'duplicate', false);
+end;
+$$;
+
+create or replace function public.stock_write_off(p_ref uuid, p_product_id bigint, p_qty numeric, p_reason text, p_order_id bigint default null)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_active_admin() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  if length(btrim(coalesce(p_reason, ''))) < 3 or p_qty is null or p_qty <= 0 then raise exception using errcode = '22023', message = 'INVALID_WRITE_OFF'; end if;
+  if exists (select 1 from public.stock_movements where kind = 'loss' and reason like p_ref::text || '%') then return jsonb_build_object('duplicate', true); end if;
+  perform public._stock_post(p_product_id, -p_qty, 'loss', p_order_id, null, p_ref::text || ' ' || btrim(p_reason));
+  return jsonb_build_object('duplicate', false);
+end;
+$$;
+
+revoke all on function public._stock_apply_sale(bigint), public._stock_cancel_before_cooking(bigint), public._trg_order_items_stock(), public._trg_order_void_stock() from public, anon, authenticated;
+revoke all on function public.stock_check_items(jsonb), public.order_stock_info(bigint), public.admin_set_recipe(bigint, jsonb),
+                      public.stock_return_selected(bigint, uuid, jsonb, text), public.stock_write_off(uuid, bigint, numeric, text, bigint) from public, anon;
+grant execute on function public.stock_check_items(jsonb), public.order_stock_info(bigint), public.admin_set_recipe(bigint, jsonb),
+                          public.stock_return_selected(bigint, uuid, jsonb, text), public.stock_write_off(uuid, bigint, numeric, text, bigint) to authenticated;
+-- Кассир (cashier) может вызвать только stock_check_items и order_stock_info (чтение предупреждений); остальное — администратор (проверка внутри функций).
+commit;

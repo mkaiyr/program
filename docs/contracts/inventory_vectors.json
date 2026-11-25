@@ -1,0 +1,989 @@
+{
+  "about": "Сценарии для проверки складской логики. Одни и те же входы и ожидаемые результаты обязаны выдавать эталонная модель (inventory_model.py) и будущие SQL-функции. Названия продуктов и блюд условные: это структура, а не рецептуры кафе. Количества — числа в единице измерения склада продукта.",
+  "units": [
+    {
+      "qty": "1.5",
+      "from": "кг",
+      "to": "г",
+      "expect": "1500.000"
+    },
+    {
+      "qty": "250",
+      "from": "мл",
+      "to": "л",
+      "expect": "0.250"
+    },
+    {
+      "qty": "3",
+      "from": "шт",
+      "to": "шт.",
+      "expect": "3.000"
+    },
+    {
+      "qty": "0.0004",
+      "from": "кг",
+      "to": "г",
+      "expect": "0.400"
+    },
+    {
+      "qty": "1",
+      "from": "кг",
+      "to": "шт",
+      "error": "UNIT_MISMATCH"
+    },
+    {
+      "qty": "1",
+      "from": "л",
+      "to": "г",
+      "error": "UNIT_MISMATCH"
+    },
+    {
+      "qty": "1",
+      "from": "фунт",
+      "to": "г",
+      "error": "UNKNOWN_UNIT"
+    }
+  ],
+  "common": {
+    "products": {
+      "bun": {
+        "unit": "шт",
+        "stock": "100"
+      },
+      "meat": {
+        "unit": "кг",
+        "stock": "10"
+      },
+      "cheese": {
+        "unit": "г",
+        "stock": "2000"
+      },
+      "sauce": {
+        "unit": "мл",
+        "stock": "5000"
+      }
+    },
+    "recipes": {
+      "burger": [
+        {
+          "product_id": "bun",
+          "qty": "1",
+          "unit": "шт"
+        },
+        {
+          "product_id": "meat",
+          "qty": "150",
+          "unit": "г"
+        },
+        {
+          "product_id": "cheese",
+          "qty": "20",
+          "unit": "г"
+        },
+        {
+          "product_id": "sauce",
+          "qty": "30",
+          "unit": "мл"
+        }
+      ],
+      "tea": []
+    }
+  },
+  "scenarios": [
+    {
+      "name": "продажа списывает по карте с пересчётом единиц",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 1,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 2
+            }
+          ],
+          "expect": {
+            "duplicate": false,
+            "deducted": {
+              "bun": "2.000",
+              "meat": "0.300",
+              "cheese": "40.000",
+              "sauce": "60.000"
+            },
+            "missing_recipe": []
+          }
+        }
+      ],
+      "stock": {
+        "bun": "98.000",
+        "meat": "9.700",
+        "cheese": "1960.000",
+        "sauce": "4940.000"
+      },
+      "ledger_len": 4
+    },
+    {
+      "name": "повторная обработка заказа не списывает второй раз",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 7,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "sell",
+          "order_id": 7,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "duplicate": true
+          }
+        }
+      ],
+      "stock": {
+        "bun": "99.000",
+        "meat": "9.850",
+        "cheese": "1980.000",
+        "sauce": "4970.000"
+      },
+      "ledger_len": 4
+    },
+    {
+      "name": "нехватка одного продукта отклоняет заказ целиком",
+      "products": {
+        "bun": {
+          "unit": "шт",
+          "stock": "100"
+        },
+        "meat": {
+          "unit": "кг",
+          "stock": "0.2"
+        },
+        "cheese": {
+          "unit": "г",
+          "stock": "2000"
+        },
+        "sauce": {
+          "unit": "мл",
+          "stock": "5000"
+        }
+      },
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 2,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 2
+            }
+          ],
+          "expect": {
+            "error": "INSUFFICIENT_STOCK",
+            "short": [
+              "meat"
+            ]
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "0.200",
+        "cheese": "2000.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 0
+    },
+    {
+      "name": "блюдо без технологической карты ничего не списывает и попадает в предупреждение",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 3,
+          "items": [
+            {
+              "dish_id": "tea",
+              "qty": 3
+            },
+            {
+              "dish_id": "burger",
+              "qty": 1
+            },
+            {
+              "dish_id": "unknown",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "duplicate": false,
+            "missing_recipe": [
+              "tea",
+              "unknown"
+            ],
+            "deducted": {
+              "bun": "1.000",
+              "meat": "0.150",
+              "cheese": "20.000",
+              "sauce": "30.000"
+            }
+          }
+        }
+      ],
+      "stock": {
+        "bun": "99.000",
+        "meat": "9.850",
+        "cheese": "1980.000",
+        "sauce": "4970.000"
+      },
+      "ledger_len": 4
+    },
+    {
+      "name": "поступление увеличивает остаток один раз, суммирует строки",
+      "steps": [
+        {
+          "op": "receipt",
+          "id": 10,
+          "lines": [
+            {
+              "product_id": "meat",
+              "qty": "5",
+              "unit": "кг",
+              "unit_price": "2500"
+            },
+            {
+              "product_id": "cheese",
+              "qty": "500",
+              "unit": "г",
+              "unit_price": "4.5"
+            }
+          ],
+          "expect": {
+            "duplicate": false,
+            "total": "14750.00"
+          }
+        },
+        {
+          "op": "receipt",
+          "id": 10,
+          "lines": [
+            {
+              "product_id": "meat",
+              "qty": "5",
+              "unit": "кг",
+              "unit_price": "2500"
+            }
+          ],
+          "expect": {
+            "duplicate": true
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "15.000",
+        "cheese": "2500.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 2
+    },
+    {
+      "name": "поступление в другой единице пересчитывается в единицу склада",
+      "steps": [
+        {
+          "op": "receipt",
+          "id": 11,
+          "lines": [
+            {
+              "product_id": "cheese",
+              "qty": "2",
+              "unit": "кг",
+              "unit_price": "3000"
+            }
+          ],
+          "expect": {
+            "duplicate": false,
+            "total": "6000.00"
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "10.000",
+        "cheese": "4000.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 1
+    },
+    {
+      "name": "поступление с неверной строкой отклоняется целиком",
+      "steps": [
+        {
+          "op": "receipt",
+          "id": 12,
+          "lines": [
+            {
+              "product_id": "meat",
+              "qty": "1",
+              "unit": "кг",
+              "unit_price": "100"
+            },
+            {
+              "product_id": "cheese",
+              "qty": "-5",
+              "unit": "г",
+              "unit_price": "1"
+            }
+          ],
+          "expect": {
+            "error": "INVALID_LINE"
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "10.000",
+        "cheese": "2000.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 0
+    },
+    {
+      "name": "инвентаризация пишет корректировку с причиной и не повторяется",
+      "steps": [
+        {
+          "op": "count",
+          "id": 20,
+          "lines": [
+            {
+              "product_id": "bun",
+              "actual": "98",
+              "reason": "бой при хранении"
+            },
+            {
+              "product_id": "meat",
+              "actual": "10"
+            }
+          ],
+          "expect": {
+            "duplicate": false,
+            "diffs": {
+              "bun": "-2.000",
+              "meat": "0.000"
+            }
+          }
+        },
+        {
+          "op": "count",
+          "id": 20,
+          "lines": [
+            {
+              "product_id": "bun",
+              "actual": "50",
+              "reason": "x"
+            }
+          ],
+          "expect": {
+            "duplicate": true
+          }
+        }
+      ],
+      "stock": {
+        "bun": "98.000",
+        "meat": "10.000",
+        "cheese": "2000.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 1
+    },
+    {
+      "name": "расхождение без причины и отрицательный факт отклоняются",
+      "steps": [
+        {
+          "op": "count",
+          "id": 21,
+          "lines": [
+            {
+              "product_id": "bun",
+              "actual": "90"
+            }
+          ],
+          "expect": {
+            "error": "REASON_REQUIRED"
+          }
+        },
+        {
+          "op": "count",
+          "id": 22,
+          "lines": [
+            {
+              "product_id": "bun",
+              "actual": "-1",
+              "reason": "ошибка"
+            }
+          ],
+          "expect": {
+            "error": "NEGATIVE_ACTUAL"
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "10.000",
+        "cheese": "2000.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 0
+    },
+    {
+      "name": "после продажи остаток можно довести до нуля, но не ниже",
+      "products": {
+        "bun": {
+          "unit": "шт",
+          "stock": "2"
+        },
+        "meat": {
+          "unit": "кг",
+          "stock": "0.3"
+        },
+        "cheese": {
+          "unit": "г",
+          "stock": "40"
+        },
+        "sauce": {
+          "unit": "мл",
+          "stock": "60"
+        }
+      },
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 5,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 2
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "sell",
+          "order_id": 6,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "error": "INSUFFICIENT_STOCK"
+          }
+        }
+      ],
+      "stock": {
+        "bun": "0.000",
+        "meat": "0.000",
+        "cheese": "0.000",
+        "sauce": "0.000"
+      },
+      "ledger_len": 4
+    },
+    {
+      "name": "принятие заказа сайта списывает один раз; повторное принятие ничего не списывает",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 30,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 2
+            }
+          ],
+          "expect": {
+            "duplicate": false,
+            "deducted": {
+              "bun": "2.000",
+              "meat": "0.300",
+              "cheese": "40.000",
+              "sauce": "60.000"
+            }
+          }
+        },
+        {
+          "op": "sell",
+          "order_id": 30,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 2
+            }
+          ],
+          "expect": {
+            "duplicate": true
+          }
+        }
+      ],
+      "stock": {
+        "bun": "98.000",
+        "meat": "9.700",
+        "cheese": "1960.000",
+        "sauce": "4940.000"
+      },
+      "ledger_len": 4
+    },
+    {
+      "name": "отмена до начала приготовления возвращает всё списанное один раз",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 4,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 3
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "cancel",
+          "order_id": 4,
+          "cooking": false,
+          "expect": {
+            "duplicate": false,
+            "restored": {
+              "bun": "3.000",
+              "meat": "0.450",
+              "cheese": "60.000",
+              "sauce": "90.000"
+            },
+            "manual_required": false
+          }
+        },
+        {
+          "op": "cancel",
+          "order_id": 4,
+          "cooking": false,
+          "expect": {
+            "duplicate": true
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "10.000",
+        "cheese": "2000.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 8
+    },
+    {
+      "name": "отмена после начала приготовления ничего не возвращает автоматически",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 5,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 2
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "cancel",
+          "order_id": 5,
+          "cooking": true,
+          "expect": {
+            "duplicate": false,
+            "restored": {},
+            "manual_required": true
+          }
+        }
+      ],
+      "stock": {
+        "bun": "98.000",
+        "meat": "9.700",
+        "cheese": "1960.000",
+        "sauce": "4940.000"
+      },
+      "ledger_len": 4
+    },
+    {
+      "name": "после начала приготовления возвращаются только указанные пригодные продукты, с причиной и в пределах списанного",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 6,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 2
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "cancel",
+          "order_id": 6,
+          "cooking": true,
+          "expect": {
+            "manual_required": true
+          }
+        },
+        {
+          "op": "return",
+          "order_id": 6,
+          "ref": "r1",
+          "reason": "булочки не вскрыты",
+          "lines": [
+            {
+              "product_id": "bun",
+              "qty": 2
+            },
+            {
+              "product_id": "sauce",
+              "qty": 40
+            }
+          ],
+          "expect": {
+            "duplicate": false,
+            "restored": {
+              "bun": "2.000",
+              "sauce": "40.000"
+            }
+          }
+        },
+        {
+          "op": "return",
+          "order_id": 6,
+          "ref": "r1",
+          "reason": "булочки не вскрыты",
+          "lines": [
+            {
+              "product_id": "bun",
+              "qty": 2
+            }
+          ],
+          "expect": {
+            "duplicate": true
+          }
+        },
+        {
+          "op": "return",
+          "order_id": 6,
+          "ref": "r2",
+          "reason": "ещё",
+          "lines": [
+            {
+              "product_id": "sauce",
+              "qty": 30
+            }
+          ],
+          "expect": {
+            "error": "RETURN_EXCEEDS"
+          }
+        },
+        {
+          "op": "return",
+          "order_id": 6,
+          "ref": "r3",
+          "reason": "",
+          "lines": [
+            {
+              "product_id": "bun",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "error": "REASON_REQUIRED"
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "9.700",
+        "cheese": "1960.000",
+        "sauce": "4980.000"
+      },
+      "ledger_len": 6
+    },
+    {
+      "name": "возврат готового заказа: без автоматического возврата продуктов, только по явной операции",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 7,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "cancel",
+          "order_id": 7,
+          "cooking": true,
+          "expect": {
+            "restored": {},
+            "manual_required": true
+          }
+        }
+      ],
+      "stock": {
+        "bun": "99.000",
+        "meat": "9.850",
+        "cheese": "1980.000",
+        "sauce": "4970.000"
+      },
+      "ledger_len": 4
+    },
+    {
+      "name": "возврат не может превысить списанное, даже по нескольким операциям",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 8,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "return",
+          "order_id": 8,
+          "ref": "a",
+          "reason": "ок",
+          "lines": [
+            {
+              "product_id": "bun",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "return",
+          "order_id": 8,
+          "ref": "b",
+          "reason": "ок",
+          "lines": [
+            {
+              "product_id": "bun",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "error": "RETURN_EXCEEDS"
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "9.850",
+        "cheese": "1980.000",
+        "sauce": "4970.000"
+      },
+      "ledger_len": 5
+    },
+    {
+      "name": "после возврата отмена до приготовления возвращает только остаток списанного",
+      "steps": [
+        {
+          "op": "sell",
+          "order_id": 9,
+          "items": [
+            {
+              "dish_id": "burger",
+              "qty": 2
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "return",
+          "order_id": 9,
+          "ref": "a",
+          "reason": "ок",
+          "lines": [
+            {
+              "product_id": "bun",
+              "qty": 1
+            }
+          ],
+          "expect": {
+            "duplicate": false
+          }
+        },
+        {
+          "op": "cancel",
+          "order_id": 9,
+          "cooking": false,
+          "expect": {
+            "duplicate": false,
+            "restored": {
+              "bun": "1.000",
+              "meat": "0.300",
+              "cheese": "40.000",
+              "sauce": "60.000"
+            }
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "10.000",
+        "cheese": "2000.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 9
+    },
+    {
+      "name": "списание потерь: причина обязательна, не больше остатка, повтор по ключу не меняет",
+      "steps": [
+        {
+          "op": "writeoff",
+          "ref": "w1",
+          "product_id": "meat",
+          "qty": "1.5",
+          "reason": "испортилось",
+          "expect": {
+            "duplicate": false,
+            "written_off": "1.500"
+          }
+        },
+        {
+          "op": "writeoff",
+          "ref": "w1",
+          "product_id": "meat",
+          "qty": "1.5",
+          "reason": "испортилось",
+          "expect": {
+            "duplicate": true
+          }
+        },
+        {
+          "op": "writeoff",
+          "ref": "w2",
+          "product_id": "meat",
+          "qty": "0.5",
+          "reason": "",
+          "expect": {
+            "error": "REASON_REQUIRED"
+          }
+        },
+        {
+          "op": "writeoff",
+          "ref": "w3",
+          "product_id": "meat",
+          "qty": "99",
+          "reason": "ошибка",
+          "expect": {
+            "error": "INSUFFICIENT_STOCK"
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "8.500",
+        "cheese": "2000.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 1
+    },
+    {
+      "name": "складской статус блюда для кассы: хватает, не хватает, нет карты",
+      "products": {
+        "bun": {
+          "unit": "шт",
+          "stock": "100"
+        },
+        "meat": {
+          "unit": "кг",
+          "stock": "0.1"
+        },
+        "cheese": {
+          "unit": "г",
+          "stock": "2000"
+        },
+        "sauce": {
+          "unit": "мл",
+          "stock": "5000"
+        }
+      },
+      "steps": [
+        {
+          "op": "status",
+          "dish_id": "burger",
+          "qty": 1,
+          "expect": {
+            "status": "insufficient",
+            "short": [
+              "meat"
+            ]
+          }
+        },
+        {
+          "op": "status",
+          "dish_id": "tea",
+          "qty": 1,
+          "expect": {
+            "status": "no_recipe",
+            "short": []
+          }
+        },
+        {
+          "op": "status",
+          "dish_id": "unknown",
+          "qty": 1,
+          "expect": {
+            "status": "no_recipe",
+            "short": []
+          }
+        }
+      ],
+      "stock": {
+        "bun": "100.000",
+        "meat": "0.100",
+        "cheese": "2000.000",
+        "sauce": "5000.000"
+      },
+      "ledger_len": 0
+    }
+  ]
+}

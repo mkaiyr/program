@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Страница не найдена — Кафе Бистро (демо)</title>
+  <meta name="robots" content="noindex">
+  <!-- 404.html отдаётся по любому несуществующему адресу на любой глубине: относительные пути здесь ненадёжны,
+       поэтому стили встроены, а ссылка на главную вычисляется из адреса (первый сегмент — имя репозитория). -->
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #FBF6EE; color: #2A1B14; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; line-height: 1.6; padding: 1.5rem; }
+    main { max-width: 30rem; text-align: center; }
+    h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(2rem, 6vw, 3rem); margin: 0 0 .5rem; }
+    a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 1.5rem; border-radius: 999px; background: #B4491F; color: #fff; font-weight: 700; text-decoration: none; }
+    a:hover { background: #963B18; }
+    a:focus-visible { outline: 3px solid #1F5FBF; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Страница не найдена</h1>
+    <p>Такой страницы нет. Возможно, ссылка устарела. Это демонстрационный сайт кафе.</p>
+    <p><a id="home" href="./">На главную</a></p>
+  </main>
+  <script>
+    (function () {
+      var seg = location.pathname.split("/").filter(Boolean)[0];
+      var onProjectPage = /\.github\.io$/.test(location.hostname) && seg && seg.indexOf(".") === -1;
+      document.getElementById("home").href = onProjectPage ? "/" + seg + "/" : "/";
+    })();
+  </script>
+</body>
+</html>

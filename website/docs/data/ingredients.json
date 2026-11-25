@@ -1,0 +1,488 @@
+{
+  "schema": 1,
+  "note": "Демонстрационные данные об аллергенах: не подтверждены производителем и не являются реальной информацией о составе.",
+  "allergens": [
+    {
+      "id": "gluten",
+      "name": "Глютенсодержащие злаки"
+    },
+    {
+      "id": "crustaceans",
+      "name": "Ракообразные"
+    },
+    {
+      "id": "eggs",
+      "name": "Яйца"
+    },
+    {
+      "id": "fish",
+      "name": "Рыба"
+    },
+    {
+      "id": "peanuts",
+      "name": "Арахис"
+    },
+    {
+      "id": "soy",
+      "name": "Соя"
+    },
+    {
+      "id": "milk",
+      "name": "Молоко"
+    },
+    {
+      "id": "nuts",
+      "name": "Орехи"
+    },
+    {
+      "id": "celery",
+      "name": "Сельдерей"
+    },
+    {
+      "id": "mustard",
+      "name": "Горчица"
+    },
+    {
+      "id": "sesame",
+      "name": "Кунжут"
+    },
+    {
+      "id": "sulphites",
+      "name": "Диоксид серы и сульфиты"
+    },
+    {
+      "id": "molluscs",
+      "name": "Моллюски"
+    },
+    {
+      "id": "lupin",
+      "name": "Люпин"
+    }
+  ],
+  "ingredients": {
+    "bun": {
+      "name": "булочка",
+      "allergens": {
+        "gluten": "contains",
+        "eggs": "may_contain",
+        "sesame": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "beef_patty": {
+      "name": "говяжья котлета",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "breaded_chicken": {
+      "name": "куриное филе в панировке",
+      "allergens": {
+        "gluten": "contains",
+        "eggs": "contains",
+        "milk": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "cheddar": {
+      "name": "сыр чеддер",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "mozzarella": {
+      "name": "сыр моцарелла",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "feta": {
+      "name": "сыр фета",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "parmesan": {
+      "name": "пармезан",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "tomato": {
+      "name": "помидор",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "cucumber": {
+      "name": "огурец",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "lettuce": {
+      "name": "листья салата",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "romaine": {
+      "name": "салат романо",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "onion": {
+      "name": "лук",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "pickles": {
+      "name": "маринованные огурцы",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "bacon": {
+      "name": "бекон",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "ketchup": {
+      "name": "кетчуп",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "mayonnaise": {
+      "name": "майонез",
+      "allergens": {
+        "eggs": "contains",
+        "mustard": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "burger_sauce": {
+      "name": "фирменный соус",
+      "allergens": {
+        "eggs": "contains",
+        "mustard": "may_contain"
+      },
+      "confirmed_free": [],
+      "detail": "майонез, горчица, специи"
+    },
+    "bbq_sauce": {
+      "name": "соус барбекю",
+      "allergens": {
+        "soy": "may_contain",
+        "mustard": "may_contain",
+        "celery": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "cheese_sauce": {
+      "name": "сырный соус",
+      "allergens": {
+        "milk": "contains",
+        "gluten": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "pizza_dough": {
+      "name": "тесто",
+      "allergens": {
+        "gluten": "contains"
+      },
+      "confirmed_free": [],
+      "detail": "пшеничная мука, вода, дрожжи"
+    },
+    "pizza_tomato_sauce": {
+      "name": "томатный соус",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "basil": {
+      "name": "базилик",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "pepperoni": {
+      "name": "пепперони",
+      "allergens": {
+        "milk": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "mushrooms": {
+      "name": "шампиньоны",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "chicken_fillet": {
+      "name": "куриное филе",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "croutons": {
+      "name": "сухарики",
+      "allergens": {
+        "gluten": "contains"
+      },
+      "confirmed_free": []
+    },
+    "caesar_dressing": {
+      "name": "соус Цезарь",
+      "allergens": {
+        "eggs": "contains",
+        "fish": "contains",
+        "mustard": "may_contain",
+        "milk": "may_contain"
+      },
+      "confirmed_free": [],
+      "detail": "яйцо, анчоусы, горчица, масло"
+    },
+    "bell_pepper": {
+      "name": "болгарский перец",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "olives": {
+      "name": "оливки",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "olive_oil": {
+      "name": "оливковое масло",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "sunflower_oil": {
+      "name": "подсолнечное масло",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "pasta": {
+      "name": "паста",
+      "allergens": {
+        "gluten": "contains",
+        "eggs": "may_contain"
+      },
+      "confirmed_free": [],
+      "detail": "пшеничная мука твёрдых сортов"
+    },
+    "cream": {
+      "name": "сливки",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "garlic": {
+      "name": "чеснок",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "bolognese_sauce": {
+      "name": "соус болоньезе",
+      "allergens": {
+        "celery": "contains"
+      },
+      "confirmed_free": [],
+      "detail": "говядина, томаты, лук, морковь, сельдерей"
+    },
+    "beef": {
+      "name": "говядина",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "rice": {
+      "name": "рис",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "carrot": {
+      "name": "морковь",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "spices": {
+      "name": "специи",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "chicken_broth": {
+      "name": "куриный бульон",
+      "allergens": {
+        "celery": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "potato": {
+      "name": "картофель",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "noodles": {
+      "name": "лапша",
+      "allergens": {
+        "gluten": "contains",
+        "eggs": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "herbs": {
+      "name": "зелень",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "zucchini": {
+      "name": "цукини",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "eggplant": {
+      "name": "баклажан",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "nuggets": {
+      "name": "куриные наггетсы в панировке",
+      "allergens": {
+        "gluten": "contains",
+        "eggs": "contains",
+        "milk": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "wings": {
+      "name": "куриные крылья",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "soy_marinade": {
+      "name": "маринад на соевом соусе",
+      "allergens": {
+        "soy": "contains",
+        "gluten": "contains",
+        "sesame": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "cheese_sticks": {
+      "name": "сырные палочки в панировке",
+      "allergens": {
+        "milk": "contains",
+        "gluten": "contains",
+        "eggs": "contains"
+      },
+      "confirmed_free": []
+    },
+    "onion_batter": {
+      "name": "лук в кляре",
+      "allergens": {
+        "gluten": "contains",
+        "eggs": "contains",
+        "milk": "may_contain"
+      },
+      "confirmed_free": []
+    },
+    "coffee": {
+      "name": "кофе",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "water": {
+      "name": "вода",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "milk": {
+      "name": "молоко",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "lemon": {
+      "name": "лимон",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "mint": {
+      "name": "мята",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "sugar": {
+      "name": "сахар",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "black_tea": {
+      "name": "чёрный чай",
+      "allergens": {},
+      "confirmed_free": []
+    },
+    "curd": {
+      "name": "творог",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "flour": {
+      "name": "пшеничная мука",
+      "allergens": {
+        "gluten": "contains"
+      },
+      "confirmed_free": []
+    },
+    "egg": {
+      "name": "яйцо",
+      "allergens": {
+        "eggs": "contains"
+      },
+      "confirmed_free": []
+    },
+    "sour_cream": {
+      "name": "сметана",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "condensed_milk": {
+      "name": "сгущённое молоко",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "butter": {
+      "name": "сливочное масло",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "cream_cheese": {
+      "name": "сливочный сыр",
+      "allergens": {
+        "milk": "contains"
+      },
+      "confirmed_free": []
+    },
+    "cookie_base": {
+      "name": "песочная основа",
+      "allergens": {
+        "gluten": "contains",
+        "milk": "contains",
+        "eggs": "may_contain"
+      },
+      "confirmed_free": [],
+      "detail": "печенье, сливочное масло"
+    },
+    "berry_sauce": {
+      "name": "ягодный соус",
+      "allergens": {},
+      "confirmed_free": []
+    }
+  }
+}

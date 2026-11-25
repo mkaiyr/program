@@ -1,0 +1,50 @@
+# Публикация сайта из website/docs/ на GitHub Pages.
+# Требует в настройках репозитория: Settings → Pages → Source: «GitHub Actions».
+# Запускается только при изменениях сайта; проверки выполняются до публикации. Секретов не использует.
+name: Deploy website to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["website/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Проверки, не требующие браузера WebKit (он есть только на macOS)
+      - name: Validate data, photos, paths, HTML, hygiene
+        working-directory: website
+        run: |
+          for s in validate_data check_photos check_paths check_contrast check_html check_hygiene run_py_tests; do
+            echo "== $s"; python3 tools/$s.py
+          done
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/docs
+      - id: deployment
+        uses: actions/deploy-pages@v4

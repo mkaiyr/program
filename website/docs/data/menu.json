@@ -1,0 +1,840 @@
+{
+  "schema": 1,
+  "demo": true,
+  "currency": "KZT",
+  "categories": [
+    {
+      "id": "burgers",
+      "name": "Бургеры",
+      "sort": 1
+    },
+    {
+      "id": "pizza",
+      "name": "Пицца",
+      "sort": 2
+    },
+    {
+      "id": "salads",
+      "name": "Салаты",
+      "sort": 3
+    },
+    {
+      "id": "hot",
+      "name": "Горячие блюда",
+      "sort": 4
+    },
+    {
+      "id": "sides",
+      "name": "Гарниры",
+      "sort": 5
+    },
+    {
+      "id": "starters",
+      "name": "Закуски",
+      "sort": 6
+    },
+    {
+      "id": "drinks",
+      "name": "Напитки",
+      "sort": 7
+    },
+    {
+      "id": "desserts",
+      "name": "Десерты",
+      "sort": 8
+    },
+    {
+      "id": "sauces",
+      "name": "Соусы",
+      "sort": 9
+    }
+  ],
+  "dishes": [
+    {
+      "id": "cheeseburger",
+      "name": "Чизбургер",
+      "category": "burgers",
+      "price": 2290,
+      "description": "Сочная говяжья котлета, расплавленный чеддер и свежие овощи в мягкой булочке.",
+      "weight": {
+        "value": 260,
+        "unit": "г"
+      },
+      "ingredients": [
+        "bun",
+        "beef_patty",
+        "cheddar",
+        "tomato",
+        "lettuce",
+        "pickles",
+        "onion",
+        "burger_sauce"
+      ],
+      "recommended": true,
+      "available": true,
+      "photo": {
+        "file": "cheeseburger.webp",
+        "thumb": "cheeseburger-thumb.webp",
+        "alt": "Чизбургер",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 1
+    },
+    {
+      "id": "classic-burger",
+      "name": "Классический бургер",
+      "category": "burgers",
+      "price": 2090,
+      "description": "Привычный вкус: котлета на гриле, овощи, кетчуп и майонез.",
+      "weight": {
+        "value": 240,
+        "unit": "г"
+      },
+      "ingredients": [
+        "bun",
+        "beef_patty",
+        "tomato",
+        "lettuce",
+        "onion",
+        "pickles",
+        "ketchup",
+        "mayonnaise"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "classic-burger.webp",
+        "thumb": "classic-burger-thumb.webp",
+        "alt": "Классический бургер",
+        "width": 977,
+        "height": 732
+      },
+      "sort": 2
+    },
+    {
+      "id": "chickenburger",
+      "name": "Чикенбургер",
+      "category": "burgers",
+      "price": 2190,
+      "description": "Хрустящее куриное филе, салат и помидор с лёгким соусом.",
+      "weight": {
+        "value": 250,
+        "unit": "г"
+      },
+      "ingredients": [
+        "bun",
+        "breaded_chicken",
+        "lettuce",
+        "tomato",
+        "mayonnaise"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "chickenburger.webp",
+        "thumb": "chickenburger-thumb.webp",
+        "alt": "Чикенбургер",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 3
+    },
+    {
+      "id": "bacon-burger",
+      "name": "Бургер с беконом",
+      "category": "burgers",
+      "price": 2690,
+      "description": "Говяжья котлета, бекон, чеддер и соус барбекю.",
+      "weight": {
+        "value": 290,
+        "unit": "г"
+      },
+      "ingredients": [
+        "bun",
+        "beef_patty",
+        "bacon",
+        "cheddar",
+        "tomato",
+        "lettuce",
+        "bbq_sauce"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "bacon-burger.webp",
+        "thumb": "bacon-burger-thumb.webp",
+        "alt": "Бургер с беконом",
+        "width": 977,
+        "height": 732
+      },
+      "sort": 4
+    },
+    {
+      "id": "margherita",
+      "name": "Пицца Маргарита",
+      "category": "pizza",
+      "price": 3190,
+      "description": "Тонкое тесто, томатный соус, моцарелла и свежий базилик. Диаметр 30 см.",
+      "weight": {
+        "value": 450,
+        "unit": "г"
+      },
+      "ingredients": [
+        "pizza_dough",
+        "pizza_tomato_sauce",
+        "mozzarella",
+        "tomato",
+        "basil",
+        "olive_oil"
+      ],
+      "recommended": true,
+      "available": true,
+      "photo": {
+        "file": "margherita.webp",
+        "thumb": "margherita-thumb.webp",
+        "alt": "Пицца Маргарита",
+        "width": 977,
+        "height": 732
+      },
+      "sort": 5
+    },
+    {
+      "id": "pepperoni-pizza",
+      "name": "Пицца Пепперони",
+      "category": "pizza",
+      "price": 3690,
+      "description": "Пикантная пепперони и тянущаяся моцарелла на томатном соусе. Диаметр 30 см.",
+      "weight": {
+        "value": 480,
+        "unit": "г"
+      },
+      "ingredients": [
+        "pizza_dough",
+        "pizza_tomato_sauce",
+        "mozzarella",
+        "pepperoni"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "pepperoni-pizza.webp",
+        "thumb": "pepperoni-pizza-thumb.webp",
+        "alt": "Пицца Пепперони",
+        "width": 977,
+        "height": 732
+      },
+      "sort": 6
+    },
+    {
+      "id": "chicken-pizza",
+      "name": "Пицца с курицей",
+      "category": "pizza",
+      "price": 3590,
+      "description": "Куриное филе, шампиньоны и моцарелла. Диаметр 30 см.",
+      "weight": {
+        "value": 500,
+        "unit": "г"
+      },
+      "ingredients": [
+        "pizza_dough",
+        "pizza_tomato_sauce",
+        "mozzarella",
+        "chicken_fillet",
+        "mushrooms",
+        "onion"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": null,
+      "sort": 7
+    },
+    {
+      "id": "caesar",
+      "name": "Салат Цезарь",
+      "category": "salads",
+      "price": 2490,
+      "description": "Куриное филе, хрустящие сухарики, пармезан и классический соус.",
+      "weight": {
+        "value": 230,
+        "unit": "г"
+      },
+      "ingredients": [
+        "romaine",
+        "chicken_fillet",
+        "croutons",
+        "parmesan",
+        "tomato",
+        "caesar_dressing"
+      ],
+      "recommended": true,
+      "available": true,
+      "photo": {
+        "file": "caesar.webp",
+        "thumb": "caesar-thumb.webp",
+        "alt": "Салат Цезарь",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 8
+    },
+    {
+      "id": "greek-salad",
+      "name": "Греческий салат",
+      "category": "salads",
+      "price": 2190,
+      "description": "Помидоры, огурцы, перец, оливки и фета с оливковым маслом.",
+      "weight": {
+        "value": 220,
+        "unit": "г"
+      },
+      "ingredients": [
+        "tomato",
+        "cucumber",
+        "bell_pepper",
+        "onion",
+        "olives",
+        "feta",
+        "olive_oil"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "greek-salad.webp",
+        "thumb": "greek-salad-thumb.webp",
+        "alt": "Греческий салат",
+        "width": 977,
+        "height": 732
+      },
+      "sort": 9
+    },
+    {
+      "id": "vegetable-salad",
+      "name": "Овощной салат",
+      "category": "salads",
+      "price": 1590,
+      "description": "Свежие овощи с подсолнечным маслом.",
+      "weight": {
+        "value": 200,
+        "unit": "г"
+      },
+      "ingredients": [
+        "tomato",
+        "cucumber",
+        "lettuce",
+        "onion",
+        "sunflower_oil"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "vegetable-salad.webp",
+        "thumb": "vegetable-salad-thumb.webp",
+        "alt": "Овощной салат",
+        "width": 977,
+        "height": 732
+      },
+      "sort": 10
+    },
+    {
+      "id": "pasta-chicken",
+      "name": "Паста с курицей",
+      "category": "hot",
+      "price": 2890,
+      "description": "Нежное куриное филе и грибы в сливочном соусе с пармезаном.",
+      "weight": {
+        "value": 320,
+        "unit": "г"
+      },
+      "ingredients": [
+        "pasta",
+        "chicken_fillet",
+        "mushrooms",
+        "cream",
+        "parmesan",
+        "garlic"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "pasta-chicken.webp",
+        "thumb": "pasta-chicken-thumb.webp",
+        "alt": "Паста с курицей",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 11
+    },
+    {
+      "id": "pasta-bolognese",
+      "name": "Паста Болоньезе",
+      "category": "hot",
+      "price": 2790,
+      "description": "Паста с насыщенным мясным соусом и пармезаном.",
+      "weight": {
+        "value": 330,
+        "unit": "г"
+      },
+      "ingredients": [
+        "pasta",
+        "bolognese_sauce",
+        "parmesan"
+      ],
+      "recommended": true,
+      "available": true,
+      "photo": {
+        "file": "pasta-bolognese.webp",
+        "thumb": "pasta-bolognese-thumb.webp",
+        "alt": "Паста Болоньезе",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 12
+    },
+    {
+      "id": "rice-beef",
+      "name": "Рис с говядиной",
+      "category": "hot",
+      "price": 3090,
+      "description": "Рассыпчатый рис с говядиной, морковью и болгарским перцем.",
+      "weight": {
+        "value": 350,
+        "unit": "г"
+      },
+      "ingredients": [
+        "rice",
+        "beef",
+        "onion",
+        "carrot",
+        "bell_pepper",
+        "sunflower_oil",
+        "spices"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "rice-beef.webp",
+        "thumb": "rice-beef-thumb.webp",
+        "alt": "Рис с говядиной",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 13
+    },
+    {
+      "id": "chicken-soup",
+      "name": "Суп с курицей",
+      "category": "hot",
+      "price": 1790,
+      "description": "Наваристый куриный бульон с картофелем, морковью и лапшой.",
+      "weight": {
+        "value": 300,
+        "unit": "мл"
+      },
+      "ingredients": [
+        "chicken_broth",
+        "chicken_fillet",
+        "potato",
+        "carrot",
+        "noodles",
+        "herbs"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "chicken-soup.webp",
+        "thumb": "chicken-soup-thumb.webp",
+        "alt": "Суп с курицей",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 14
+    },
+    {
+      "id": "fries",
+      "name": "Картофель фри",
+      "category": "sides",
+      "price": 1190,
+      "description": "Золотистый хрустящий картофель.",
+      "weight": {
+        "value": 150,
+        "unit": "г"
+      },
+      "ingredients": [
+        "potato",
+        "sunflower_oil"
+      ],
+      "recommended": true,
+      "available": true,
+      "photo": {
+        "file": "fries.webp",
+        "thumb": "fries-thumb.webp",
+        "alt": "Картофель фри",
+        "width": 944,
+        "height": 708
+      },
+      "sort": 15
+    },
+    {
+      "id": "rustic-potatoes",
+      "name": "Картофель по-деревенски",
+      "category": "sides",
+      "price": 1390,
+      "description": "Запечённый картофель с чесноком и зеленью.",
+      "weight": {
+        "value": 180,
+        "unit": "г"
+      },
+      "ingredients": [
+        "potato",
+        "sunflower_oil",
+        "garlic",
+        "spices",
+        "herbs"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "rustic-potatoes.webp",
+        "thumb": "rustic-potatoes-thumb.webp",
+        "alt": "Картофель по-деревенски",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 16
+    },
+    {
+      "id": "grilled-vegetables",
+      "name": "Овощи гриль",
+      "category": "sides",
+      "price": 1590,
+      "description": "Цукини, баклажан, перец и помидор, приготовленные на гриле.",
+      "weight": {
+        "value": 200,
+        "unit": "г"
+      },
+      "ingredients": [
+        "zucchini",
+        "eggplant",
+        "bell_pepper",
+        "tomato",
+        "olive_oil",
+        "herbs"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": null,
+      "sort": 17
+    },
+    {
+      "id": "nuggets",
+      "name": "Куриные наггетсы",
+      "category": "starters",
+      "price": 1690,
+      "description": "Шесть хрустящих кусочков куриного филе в панировке.",
+      "weight": {
+        "value": 150,
+        "unit": "г"
+      },
+      "ingredients": [
+        "nuggets"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "nuggets.webp",
+        "thumb": "nuggets-thumb.webp",
+        "alt": "Куриные наггетсы",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 18
+    },
+    {
+      "id": "wings",
+      "name": "Куриные крылышки",
+      "category": "starters",
+      "price": 2190,
+      "description": "Запечённые крылышки в маринаде на соевом соусе.",
+      "weight": {
+        "value": 250,
+        "unit": "г"
+      },
+      "ingredients": [
+        "wings",
+        "soy_marinade",
+        "garlic"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "wings.webp",
+        "thumb": "wings-thumb.webp",
+        "alt": "Куриные крылышки",
+        "width": 977,
+        "height": 732
+      },
+      "sort": 19
+    },
+    {
+      "id": "cheese-sticks",
+      "name": "Сырные палочки",
+      "category": "starters",
+      "price": 1890,
+      "description": "Шесть палочек с тянущимся сыром в хрустящей панировке.",
+      "weight": {
+        "value": 140,
+        "unit": "г"
+      },
+      "ingredients": [
+        "cheese_sticks"
+      ],
+      "recommended": true,
+      "available": true,
+      "photo": {
+        "file": "cheese-sticks.webp",
+        "thumb": "cheese-sticks-thumb.webp",
+        "alt": "Сырные палочки",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 20
+    },
+    {
+      "id": "onion-rings",
+      "name": "Луковые кольца",
+      "category": "starters",
+      "price": 1490,
+      "description": "Луковые кольца в хрустящем кляре.",
+      "weight": {
+        "value": 130,
+        "unit": "г"
+      },
+      "ingredients": [
+        "onion_batter"
+      ],
+      "recommended": false,
+      "available": false,
+      "photo": {
+        "file": "onion-rings.webp",
+        "thumb": "onion-rings-thumb.webp",
+        "alt": "Луковые кольца",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 21
+    },
+    {
+      "id": "americano",
+      "name": "Американо",
+      "category": "drinks",
+      "price": 890,
+      "description": "Классический чёрный кофе.",
+      "weight": {
+        "value": 250,
+        "unit": "мл"
+      },
+      "ingredients": [
+        "coffee",
+        "water"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "americano.webp",
+        "thumb": "americano-thumb.webp",
+        "alt": "Американо",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 22
+    },
+    {
+      "id": "cappuccino",
+      "name": "Капучино",
+      "category": "drinks",
+      "price": 1190,
+      "description": "Эспрессо с молоком и плотной молочной пеной.",
+      "weight": {
+        "value": 250,
+        "unit": "мл"
+      },
+      "ingredients": [
+        "coffee",
+        "milk"
+      ],
+      "recommended": true,
+      "available": true,
+      "photo": {
+        "file": "cappuccino.webp",
+        "thumb": "cappuccino-thumb.webp",
+        "alt": "Капучино",
+        "width": 944,
+        "height": 708
+      },
+      "sort": 23
+    },
+    {
+      "id": "lemonade",
+      "name": "Домашний лимонад",
+      "category": "drinks",
+      "price": 1090,
+      "description": "Лимон, мята и сахар, охлаждённый.",
+      "weight": {
+        "value": 400,
+        "unit": "мл"
+      },
+      "ingredients": [
+        "lemon",
+        "mint",
+        "sugar",
+        "water"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "lemonade.webp",
+        "thumb": "lemonade-thumb.webp",
+        "alt": "Домашний лимонад",
+        "width": 977,
+        "height": 732
+      },
+      "sort": 24
+    },
+    {
+      "id": "black-tea",
+      "name": "Чай чёрный",
+      "category": "drinks",
+      "price": 690,
+      "description": "Крупнолистовой чёрный чай.",
+      "weight": {
+        "value": 400,
+        "unit": "мл"
+      },
+      "ingredients": [
+        "black_tea",
+        "water"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": null,
+      "sort": 25
+    },
+    {
+      "id": "syrniki",
+      "name": "Сырники",
+      "category": "desserts",
+      "price": 1690,
+      "description": "Три нежных сырника со сметаной.",
+      "weight": {
+        "value": 180,
+        "unit": "г"
+      },
+      "ingredients": [
+        "curd",
+        "flour",
+        "egg",
+        "sugar",
+        "sour_cream",
+        "sunflower_oil"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": {
+        "file": "syrniki.webp",
+        "thumb": "syrniki-thumb.webp",
+        "alt": "Сырники",
+        "width": 1200,
+        "height": 900
+      },
+      "sort": 26
+    },
+    {
+      "id": "blini",
+      "name": "Блины со сгущёнкой",
+      "category": "desserts",
+      "price": 1490,
+      "description": "Три тонких блина со сгущённым молоком.",
+      "weight": {
+        "value": 200,
+        "unit": "г"
+      },
+      "ingredients": [
+        "flour",
+        "milk",
+        "egg",
+        "sugar",
+        "condensed_milk",
+        "butter"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": null,
+      "sort": 27
+    },
+    {
+      "id": "cheesecake",
+      "name": "Чизкейк",
+      "category": "desserts",
+      "price": 1790,
+      "description": "Нежный сливочный чизкейк на песочной основе с ягодным соусом.",
+      "weight": {
+        "value": 130,
+        "unit": "г"
+      },
+      "ingredients": [
+        "cream_cheese",
+        "cookie_base",
+        "egg",
+        "sugar",
+        "berry_sauce"
+      ],
+      "recommended": true,
+      "available": true,
+      "photo": {
+        "file": "cheesecake.webp",
+        "thumb": "cheesecake-thumb.webp",
+        "alt": "Чизкейк",
+        "width": 977,
+        "height": 732
+      },
+      "sort": 28
+    },
+    {
+      "id": "cheese-sauce",
+      "name": "Сырный соус",
+      "category": "sauces",
+      "price": 390,
+      "description": "Порция сырного соуса.",
+      "weight": {
+        "value": 40,
+        "unit": "г"
+      },
+      "ingredients": [
+        "cheese_sauce"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": null,
+      "sort": 29
+    },
+    {
+      "id": "bbq-sauce",
+      "name": "Соус барбекю",
+      "category": "sauces",
+      "price": 390,
+      "description": "Порция соуса барбекю.",
+      "weight": {
+        "value": 40,
+        "unit": "г"
+      },
+      "ingredients": [
+        "bbq_sauce"
+      ],
+      "recommended": false,
+      "available": true,
+      "photo": null,
+      "sort": 30
+    }
+  ]
+}

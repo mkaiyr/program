@@ -1,0 +1,96 @@
+-- ЧЕРНОВИК ДЛЯ РЕВЬЮ. НЕ ПРИМЕНЯТЬ. Не выполнялся и не проверен на синтаксис.
+-- =====================================================================
+-- 20. Поступления товаров от поставщиков (черновик → подтверждение), защита от повторного подтверждения
+-- Зависимости: 19 (stock_products, suppliers, _stock_post, convert_qty). Долги поставщикам и бухгалтерия НЕ вводятся.
+-- =====================================================================
+begin;
+
+create table if not exists public.stock_receipts (
+  id                bigint generated always as identity primary key,
+  client_request_id uuid not null unique,                 -- защита от повторной отправки формы
+  supplier_id       bigint not null references public.suppliers (id) on delete restrict,
+  doc_date          date not null default current_date,
+  comment           text not null default '' check (length(comment) <= 500),
+  status            text not null default 'draft' check (status in ('draft', 'confirmed')),
+  total             numeric(14, 2) not null default 0 check (total >= 0),
+  created_by        uuid references auth.users (id) on delete set null,
+  created_at        timestamptz not null default now(),
+  confirmed_by      uuid references auth.users (id) on delete set null,
+  confirmed_at      timestamptz,
+  constraint stock_receipts_confirmed_consistent check ((status = 'confirmed') = (confirmed_at is not null))
+);
+create table if not exists public.stock_receipt_lines (
+  id         bigint generated always as identity primary key,
+  receipt_id bigint not null references public.stock_receipts (id) on delete cascade,
+  product_id bigint not null references public.stock_products (id) on delete restrict,
+  qty        numeric(14, 3) not null check (qty > 0),
+  unit       text not null check (unit in ('кг', 'г', 'л', 'мл', 'шт.')),      -- единица документа (может отличаться от единицы хранения)
+  unit_price numeric(12, 2) not null check (unit_price >= 0),                  -- цена за единицу документа
+  line_total numeric(14, 2) not null check (line_total >= 0),
+  unique (receipt_id, product_id)
+);
+alter table public.stock_receipts      enable row level security;
+alter table public.stock_receipt_lines enable row level security;
+
+-- Создание черновика (повтор с тем же p_request_id возвращает уже созданный документ)
+create or replace function public.admin_create_receipt(p_request_id uuid, p_supplier_id bigint, p_doc_date date, p_comment text, p_lines jsonb)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_id bigint; v_total numeric := 0; v_bad integer;
+begin
+  if not public.is_active_admin() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  select id into v_id from public.stock_receipts where client_request_id = p_request_id;
+  if found then return jsonb_build_object('receipt_id', v_id, 'duplicate', true); end if;
+  if p_lines is null or jsonb_typeof(p_lines) <> 'array' or jsonb_array_length(p_lines) not between 1 and 100 then
+    raise exception using errcode = '22023', message = 'INVALID_LINES';
+  end if;
+  select count(*) into v_bad from jsonb_to_recordset(p_lines) as x(product_id bigint, qty numeric, unit text, unit_price numeric)
+   where x.product_id is null or x.qty is null or x.qty <= 0 or x.unit_price is null or x.unit_price < 0
+      or not exists (select 1 from public.stock_products p where p.id = x.product_id and p.active)
+      or (select dim from public._unit_base(x.unit)) is distinct from (select dim from public._unit_base((select unit from public.stock_products where id = x.product_id)));
+  if v_bad > 0 then raise exception using errcode = '22023', message = 'INVALID_LINES'; end if;
+  insert into public.stock_receipts (client_request_id, supplier_id, doc_date, comment, created_by)
+  values (p_request_id, p_supplier_id, coalesce(p_doc_date, current_date), coalesce(p_comment, ''), auth.uid()) returning id into v_id;
+  insert into public.stock_receipt_lines (receipt_id, product_id, qty, unit, unit_price, line_total)
+  select v_id, x.product_id, x.qty, x.unit, x.unit_price, round(x.qty * x.unit_price, 2)
+    from jsonb_to_recordset(p_lines) as x(product_id bigint, qty numeric, unit text, unit_price numeric);
+  select sum(line_total) into v_total from public.stock_receipt_lines where receipt_id = v_id;
+  update public.stock_receipts set total = v_total where id = v_id;
+  return jsonb_build_object('receipt_id', v_id, 'total', v_total, 'duplicate', false);
+end;
+$$;
+
+-- Подтверждение: документ блокируется, повторное подтверждение ничего не меняет; продукты блокируются в порядке id.
+create or replace function public.admin_confirm_receipt(p_receipt_id bigint)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_status text; r record;
+begin
+  if not public.is_active_admin() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  select status into v_status from public.stock_receipts where id = p_receipt_id for update;
+  if not found then raise exception using errcode = 'P0002', message = 'RECEIPT_NOT_FOUND'; end if;
+  if v_status = 'confirmed' then return jsonb_build_object('receipt_id', p_receipt_id, 'duplicate', true); end if;
+  for r in select l.product_id, public.convert_qty(l.qty, l.unit, p.unit) as qty
+             from public.stock_receipt_lines l join public.stock_products p on p.id = l.product_id
+            where l.receipt_id = p_receipt_id order by l.product_id loop
+    perform public._stock_post(r.product_id, r.qty, 'receipt', null, p_receipt_id, null);
+  end loop;
+  update public.stock_receipts set status = 'confirmed', confirmed_by = auth.uid(), confirmed_at = now() where id = p_receipt_id;
+  return jsonb_build_object('receipt_id', p_receipt_id, 'duplicate', false);
+end;
+$$;
+
+-- Сумма закупок по поставщику и история подтверждённых поступлений (долга нет)
+create or replace function public.supplier_summary(p_supplier_id bigint)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_active_admin() then raise exception using errcode = '42501', message = 'NOT_ALLOWED'; end if;
+  return jsonb_build_object('supplier_id', p_supplier_id,
+    'purchases_total', (select coalesce(sum(total), 0) from public.stock_receipts where supplier_id = p_supplier_id and status = 'confirmed'),
+    'receipts', (select coalesce(jsonb_agg(jsonb_build_object('id', id, 'doc_date', doc_date, 'total', total, 'confirmed_at', confirmed_at) order by id desc), '[]'::jsonb)
+                   from public.stock_receipts where supplier_id = p_supplier_id and status = 'confirmed'));
+end;
+$$;
+
+revoke all on function public.admin_create_receipt(uuid, bigint, date, text, jsonb), public.admin_confirm_receipt(bigint), public.supplier_summary(bigint) from public, anon;
+grant execute on function public.admin_create_receipt(uuid, bigint, date, text, jsonb), public.admin_confirm_receipt(bigint), public.supplier_summary(bigint) to authenticated;
+-- ВОПРОС РЕВЬЮ: редактирование черновика (добавить/убрать строки) — отдельной функцией admin_update_receipt_draft; подтверждённый документ не редактируется, исправление — новым документом/инвентаризацией.
+commit;

@@ -1,0 +1,105 @@
+/* Дизайн-токены «Кафе Бистро» (демонстрационный сайт). Все пути относительные: сайт живёт в подкаталоге GitHub Pages. */
+
+/* ---------- Шрифты (свои файлы, без внешних запросов; лицензия SIL OFL, тексты лицензий лежат рядом) ---------- */
+@font-face {
+  font-family: "Manrope"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url("../fonts/manrope-cyrillic-wght.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Manrope"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url("../fonts/manrope-latin-wght.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Playfair Display"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("../fonts/playfair-cyrillic-600.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Playfair Display"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("../fonts/playfair-latin-600.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Playfair Display"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("../fonts/playfair-cyrillic-700.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Playfair Display"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("../fonts/playfair-latin-700.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* ---------- Цвет: кремовый, эспрессо, терракотовый ---------- */
+  --cream-50:  #FBF6EE;   /* фон страницы */
+  --cream-100: #F5ECDD;   /* второй фон, плашки */
+  --cream-200: #EADBC4;   /* рамки, разделители */
+  --surface:   #FFFDF9;   /* карточки */
+
+  --espresso-900: #2A1B14; /* основной текст */
+  --espresso-700: #4A3328; /* вторичный текст */
+  --espresso-600: #675246; /* приглушённый текст (контраст на фоне ≥ 4.5, проверяется tools/check_contrast.py) */
+
+  --terracotta-100: #F6DFD2;
+  --terracotta-500: #C65A2E;
+  --terracotta-600: #B4491F; /* основные кнопки (белый текст ≥ 4.5) */
+  --terracotta-700: #963B18; /* наведение, ссылки */
+
+  --olive-700:  #4F6130;   /* «в наличии», успех */
+  --olive-100:  #E6ECD6;
+  --honey-700:  #7F5200;   /* предупреждение (аллергены) */
+  --honey-100:  #F8E9C5;
+  --danger-700: #A32121;   /* ошибки */
+  --danger-100: #F7DCDC;
+
+  --text: var(--espresso-900);
+  --text-muted: var(--espresso-600);
+  --bg: var(--cream-50);
+  --bg-alt: var(--cream-100);
+  --border: var(--cream-200);
+  --accent: var(--terracotta-600);
+  --accent-hover: var(--terracotta-700);
+  --on-accent: #FFFFFF;
+  --field-border: #8C7664;  /* границы полей ввода: контраст с белым и с фоном ≥ 3:1 (WCAG 1.4.11) */
+  --focus: #1F5FBF;        /* кольцо фокуса: отличается от акцента, виден на светлом и тёмном */
+
+  /* ---------- Типографика ---------- */
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-body: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --fs-xs: 0.8125rem;
+  --fs-sm: 0.9375rem;
+  --fs-base: 1rem;
+  --fs-md: 1.125rem;
+  --fs-lg: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+  --fs-xl: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+  --fs-2xl: clamp(1.9rem, 1.3rem + 2.4vw, 3rem);
+  --fs-hero: clamp(2.3rem, 1.4rem + 4vw, 4.2rem);
+  --lh-tight: 1.15;
+  --lh-snug: 1.3;
+  --lh-body: 1.6;
+
+  /* ---------- Размеры и ритм ---------- */
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem; --space-5: 1.5rem;
+  --space-6: 2rem; --space-7: 3rem; --space-8: 4.5rem; --space-9: 6rem;
+  --gutter: clamp(1rem, 0.5rem + 2.5vw, 2rem);
+  --container: 72rem;
+  --radius-sm: 0.5rem; --radius-md: 0.875rem; --radius-lg: 1.25rem; --radius-pill: 999px;
+  --tap: 2.75rem;          /* минимальная высота элементов для касания (44 px) */
+
+  /* ---------- Тени, движение, слои ---------- */
+  --shadow-sm: 0 1px 2px rgba(42, 27, 20, 0.06), 0 1px 1px rgba(42, 27, 20, 0.04);
+  --shadow-md: 0 6px 18px rgba(42, 27, 20, 0.08), 0 2px 4px rgba(42, 27, 20, 0.05);
+  --shadow-lg: 0 18px 40px rgba(42, 27, 20, 0.14), 0 4px 10px rgba(42, 27, 20, 0.06);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 140ms; --dur: 240ms; --dur-slow: 420ms;
+  --z-header: 50; --z-drawer: 80; --z-modal: 100; --z-toast: 120;
+}
+
+/* Пользователи, отключившие анимации, их не получают */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.001ms !important; }
+}

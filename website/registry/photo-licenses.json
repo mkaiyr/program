@@ -1,0 +1,1305 @@
+{
+  "schema": 1,
+  "updated": "2026-11-25",
+  "note": "Внутренний реестр. На сайте не показывается и не публикуется (лежит вне docs/). Репозиторий публичный: файл виден тем, кто открывает репозиторий на GitHub.",
+  "verification_levels": {
+    "ISO Republic / Foodiesfeed / Negative Space": "заявление CC0 на странице самого снимка у первоисточника (цитата и контрольная сумма страницы — в license_evidence), плюс страница лицензии сайта",
+    "Wikimedia Commons": "API Commons для конкретного файла: LicenseShortName=CC0, AttributionRequired=false",
+    "rawpixel / Openverse / PxHere": "НЕ используются как источники. Запись агрегатора не считается достаточным подтверждением; сам rawpixel закрыт проверкой Cloudflare и не открывался"
+  },
+  "photos": [
+    {
+      "dish_id": "cheeseburger",
+      "file": "cheeseburger.webp",
+      "thumb": "cheeseburger-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Yummy_cheeseburger_close-up.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/c/ce/Yummy_cheeseburger_close-up.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Yummy cheeseburger close-up.jpg",
+      "author": "Meditations",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons для файла: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "file_timestamp": "2018-06-10T21:28:57Z",
+          "commons_sha1": "3fb89f27a9bf979e2c3c6d83b265ab5504b7604d"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (API Commons для конкретного файла) + визуальный отбор",
+      "original_size": "1920x1475",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "74c62cbd47a4558ee5519e0aa43132dad367657b2887397030b36fef74596505",
+      "file_sha256": "a1bbde46c2b77abe7c81b3b05f5059a1f481722013f288eb04727fb69b328b0c",
+      "thumb_sha256": "959a0bfcd916c95f8186411a26f1f8e353ff857c9e5f9a3ca3d693540da3ac31",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Чизбургер"
+    },
+    {
+      "dish_id": "classic-burger",
+      "file": "classic-burger.webp",
+      "thumb": "classic-burger-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/burger-in-restaurant/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Burger in Restaurant",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/burger-in-restaurant/",
+          "http": 200,
+          "statement": "er in Restaurant' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "0eee7e60382f529f114bf0dbc95e0ce98d23fe7d55b75a0f0514a9fdf73b6710"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1100x733",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "977x732 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "6e8cc1aa9173dcf851f0a8a44a90038c7371e34a488cabaefd45f4e48cfd9b3c",
+      "file_sha256": "5f2ced2d2912303545b4cec412ee3516fae7e183afb152ef4ad5d85f856bcf84",
+      "thumb_sha256": "6a203c7166de5ffea26be428c47673ffaf82e466003425c0c1b8f1d314fbea56",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Классический бургер"
+    },
+    {
+      "dish_id": "chickenburger",
+      "file": "chickenburger.webp",
+      "thumb": "chickenburger-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Chicken_Sandwich_(Unsplash).jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Chicken_Sandwich_%28Unsplash%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Chicken Sandwich (Unsplash).jpg",
+      "author": "Eaters Collective eaterscollective",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons для файла: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "file_timestamp": "2017-08-13T20:07:44Z",
+          "commons_sha1": "7c5db8e7d0ffc29909790efd167f73beb5774305"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (API Commons для конкретного файла) + визуальный отбор",
+      "original_size": "1920x2560",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "966ecff626c00501c25241d6181314bee4ee04ec716929462555bec49f8f09d8",
+      "file_sha256": "c9cb21d1a70b1f697acd5529e8b145021e84de32d83bbba537d5595f037d4611",
+      "thumb_sha256": "8d2dc90ab5dbb7fc871f6fc4c459c2909c8de31d9211fc0e5acab6c747c711bd",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Чикенбургер"
+    },
+    {
+      "dish_id": "bacon-burger",
+      "file": "bacon-burger.webp",
+      "thumb": "bacon-burger-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/burger-bun/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Burger Bun",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/burger-bun/",
+          "http": 200,
+          "statement": "'Burger Bun' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "f584ddaa974d07e5328a8137d9e8807e3d0e744e8023a4aca046510aa37622b7"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1100x733",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "977x732 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "a765155859b7012cd072706d7dc07d0af51d97be17f3e80fa9985f1f1ac7442b",
+      "file_sha256": "787269e68f0c5e6d788e32d7427a796eac5427ccd53876e50abeb2362bbe9bba",
+      "thumb_sha256": "b93084806b8f211d8241e3cd0c39fabcdee44ebaec92372490d43bcce6a99296",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Бургер с беконом"
+    },
+    {
+      "dish_id": "margherita",
+      "file": "margherita.webp",
+      "thumb": "margherita-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/pizza-margherita/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Pizza Margherita",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/pizza-margherita/",
+          "http": 200,
+          "statement": "Pizza Margherita' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "77c62b787518c4d7e47860f384246a5c3b43dcd5cde0efdc1322d76702d15188"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1100x733",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "977x732 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "504c29e5d16f0715d7fb5abc88dfc98ca89f7fa9cdffa3d52b349da949f010bc",
+      "file_sha256": "0d61831928ddb158946f63efadcae2ef61709862a47ecf4279f697a0d243dd37",
+      "thumb_sha256": "dd2e1df5f9f29fdda689d4ddc1ccaa8878f9edc61e1eb3d77fbc3a73f83cc6dc",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Пицца Маргарита"
+    },
+    {
+      "dish_id": "pepperoni-pizza",
+      "file": "pepperoni-pizza.webp",
+      "thumb": "pepperoni-pizza-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/pepperoni-pizza/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Pepperoni Pizza",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/pepperoni-pizza/",
+          "http": 200,
+          "statement": "izza & Basil' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "15c2548e71a2ae7867c05f44d2430d593148987d2db8bc57e477450718054a99"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1100x733",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "977x732 WebP q80",
+        "thumb": "480x360 WebP q66",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "893e5d4b98f40ac23cecdbc2fbe21fc2dfe214f49dfddd0eff883c3788f30e4a",
+      "file_sha256": "c0bb4e02a60bccf07e83344bae28a0aaa25d2bf7c5c180e76b03ec9234b12a4f",
+      "thumb_sha256": "0ec469fd190f28914a98c4cf52ab0bb5bc0eaa8afde02cb6e996da59908887f6",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Пицца Пепперони"
+    },
+    {
+      "dish_id": "caesar",
+      "file": "caesar.webp",
+      "thumb": "caesar-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:NY_Pie_-_December_2024_-_Sarah_Stierch_10.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/d/dc/NY_Pie_-_December_2024_-_Sarah_Stierch_10.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "NY Pie - December 2024 - Sarah Stierch 10.jpg",
+      "author": "Missvain",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2024-12-22T06:22:07Z",
+      "commons_sha1": "571d1feb839be4757f8e3d471a2a7f4fbe325510",
+      "original_size": "3771x2828",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q76",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "ef1691e7c05cf7c35aa3c2c7f0db9659b0d903746dc9bb33ae17d304323b2f9c",
+      "file_sha256": "ff6ff8069f3fc87f7890408c58dfb1efcb981a1fef275aa68fcd20920b9561a3",
+      "thumb_sha256": "59e4506b0218ad200f27106e2c39a871b4b4fb11a4d899becdbb13ec9a05549b",
+      "dish_name": "Салат Цезарь",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "approximate",
+      "match_note": "салат Цезарь с крутонами и пармезаном; на снимке не видно куриного филе и помидора из описания блюда",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
+      "dish_id": "greek-salad",
+      "file": "greek-salad.webp",
+      "thumb": "greek-salad-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/greek-salad/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Greek Salad",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/greek-salad/",
+          "http": 200,
+          "statement": "ers & Onions' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "7cc451f0fee4c0cc4084440be1911e3b5c7b4c79bc3a8fed2af783ccec33f793"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1100x733",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "977x732 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "f341aeeaae050c36efa71695cb459f74c2e9e9edbcdb8091927a94866aa6acbc",
+      "file_sha256": "908e6a43a00a63fb9031e30f827491d0aaf5eed51484516a962a696290dc5411",
+      "thumb_sha256": "790332de7f0530cd44e3532be08f2e4f27d31ee2d5c7dd6c394e1fda8bae191e",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Греческий салат"
+    },
+    {
+      "dish_id": "vegetable-salad",
+      "file": "vegetable-salad.webp",
+      "thumb": "vegetable-salad-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/healthy-salad/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Healthy Salad",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/healthy-salad/",
+          "http": 200,
+          "statement": "39;Healthy Salad' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "de8d677939c8da4722410e24b83704acb64d382322db1e103432315a1a5d782a"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1100x733",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "977x732 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "28d6e384e074245480744e125109dfc5fe3e1b6c28dcb4159d91e2edbd5cb88b",
+      "file_sha256": "d0fae84858bd4374aff5de7340e03a73d218c010fb4423d3a219f18de6cb54e1",
+      "thumb_sha256": "1985e813086591be42b1b97c7848d3276781d07e98f2cb82eb1091df987b500e",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Овощной салат"
+    },
+    {
+      "dish_id": "pasta-chicken",
+      "file": "pasta-chicken.webp",
+      "thumb": "pasta-chicken-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Jacob%27s_Restaurant_-_December_2025_-_Sarah_Stierch_05.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/7/79/Jacob%27s_Restaurant_-_December_2025_-_Sarah_Stierch_05.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Jacob's Restaurant - December 2025 - Sarah Stierch 05.jpg",
+      "author": "Missvain",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2025-12-28T01:23:47Z",
+      "commons_sha1": "d5e04ce35083bb3b3065357aec19a4bd7a2251eb",
+      "original_size": "5712x4284",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.4, 0.55), увеличение ×1.4",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "85ca529528e53cb48e8bad9dfa54ae2c62ee0a8064b9196bee020ea9a1f16ff5",
+      "file_sha256": "7fa01a4742db368c764233e67b9670ec5fb6773784343642330ef2cee39cc6be",
+      "thumb_sha256": "d4c867d113255205cf3db4dfe4d939ebc5c627db2c6289cdeaff59c8685cf360",
+      "dish_name": "Паста с курицей",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "approximate",
+      "match_note": "куриная паста феттучине в сливочном соусе с чесночным хлебом; грибы из описания не различимы",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
+      "dish_id": "pasta-bolognese",
+      "file": "pasta-bolognese.webp",
+      "thumb": "pasta-bolognese-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/pasta-spaghetti-2/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Pasta Spaghetti",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/pasta-spaghetti-2/",
+          "http": 200,
+          "statement": ";Pasta Spaghetti' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "896cc30aba2d0f934c7b3a467224db6b25bf9b67386d6f2d5955abef9db8f958"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "4000x2667",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "2337c6d61408d7b82af0844e2757ab2e820945ddea8e52338be43d866befb6a5",
+      "file_sha256": "039da63ec76f73aca40dede3ab1b45b6665b6c305ae2b1d11134e631970be23d",
+      "thumb_sha256": "cee84176e70941dd6fe8c987b20535b39839059409b9134cbd549092073e2de7",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Паста Болоньезе"
+    },
+    {
+      "dish_id": "rice-beef",
+      "file": "rice-beef.webp",
+      "thumb": "rice-beef-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Foodiesfeed",
+      "source_url": "https://www.foodiesfeed.com/free-food-photo/ground-beef-rice-bowl/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Ground beef rice bowl",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника Foodiesfeed",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://www.foodiesfeed.com/free-food-photo/ground-beef-rice-bowl/",
+          "http": 200,
+          "statement": "Download Ground beef rice bowl for free! High-resolution CC0 licensed photo available on Foodiesfeed.com - no attribution required.\\",
+          "page_sha256": "15ebb4ffecc6356f4d57292ab23d34d8bef90ad54bb68bd444a181ae3934c228"
+        },
+        "site_license_page": null
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "3456x5184",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q72",
+        "thumb": "480x360 WebP q74",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "c200c95dbd514e31c298308bd347ad49bface63e2e124fc9d6160eb0fd127776",
+      "file_sha256": "bf1836725680e2c7f62db209c021c84137ee839b43534c172deca17020be837f",
+      "thumb_sha256": "7a98996c37a3b3fcb7d06b30aa0b211139c81c09157216031433bc9c37393fe2",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Рис с говядиной"
+    },
+    {
+      "dish_id": "chicken-soup",
+      "file": "chicken-soup.webp",
+      "thumb": "chicken-soup-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Chicken_with_Noodles_Soup_-_Noodles_Soup_2023-10-24.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/9/90/Chicken_with_Noodles_Soup_-_Noodles_Soup_2023-10-24.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Chicken with Noodles Soup - Noodles Soup 2023-10-24.jpg",
+      "author": "Andy Li",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2023-10-24T20:58:52Z",
+      "commons_sha1": "405def876497fcf7f60d30f7afaa6664ca395c93",
+      "original_size": "1920x1440",
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (автоматическая проверка метаданных лицензии + визуальный отбор)",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "ea84f10548be15b98566f86ebe0c9ee46056830c1228a257d5a55d4d4b52ba33",
+      "file_sha256": "f5b9c605961113f0f119d659a8ba2126cb7bf34426e7e714280d0a69d83cec77",
+      "thumb_sha256": "07f1f8e2d26dc89c39457579f2e6d65b89845131c2466bf407d062b94aea1f70",
+      "dish_name": "Суп с курицей",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-18"
+        }
+      },
+      "previous_source": "Wikimedia Commons (без изменений, лицензия перепроверена)"
+    },
+    {
+      "dish_id": "fries",
+      "file": "fries.webp",
+      "thumb": "fries-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Negative Space",
+      "source_url": "https://negativespace.co/french-fries-chips-thin/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "French Fries Chips Thin",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника Negative Space и на странице лицензии сайта: https://negativespace.co/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://negativespace.co/french-fries-chips-thin/",
+          "http": 200,
+          "statement": "oto 'French Fries Chips Thin' with a CC0 license and use the image however and wherever you like",
+          "page_sha256": "137e5c055343567bd78ba80c76045c576dbef896dfc07087f1fbfc8684066c4d"
+        },
+        "site_license_page": {
+          "checked_url": "https://negativespace.co/license/",
+          "http": 200,
+          "statement": "CC0 License - NegativeSpace",
+          "page_sha256": "091d2ee8f9869afc7322039c259e113748f54dab48eeee8e2027b2f09fb48f81"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1068x708",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "944x708 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "3940bc0bcfc814942cd4c6c5dd54e12b661fd68f36943bd1195f41bf362c4e4a",
+      "file_sha256": "fd59bfcab09785020582e851c9c755f4ed09e491fa705590c4c0c0ecb7359511",
+      "thumb_sha256": "eab2cdc6b4f3be83753eefc84cc1c2accd459517bdb8eb2b420d777e7af82ca2",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Картофель фри"
+    },
+    {
+      "dish_id": "rustic-potatoes",
+      "file": "rustic-potatoes.webp",
+      "thumb": "rustic-potatoes-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Foodiesfeed",
+      "source_url": "https://www.foodiesfeed.com/free-food-photo/roasted-potatoes-with-seasoning/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Roasted potatoes with seasoning",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника Foodiesfeed",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://www.foodiesfeed.com/free-food-photo/roasted-potatoes-with-seasoning/",
+          "http": 200,
+          "statement": "Download Roasted potatoes with seasoning for free! High-resolution CC0 licensed photo available on Foodiesfeed.com - no attribution required.\\",
+          "page_sha256": "a726c86d18205a3666017844a02ee016a0b6818815bd5437896250dafd9b50ad"
+        },
+        "site_license_page": null
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "3281x4374",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "fe3491a996acd70eba92ffbd206757b4a9df570e6df2570453f9662d90447b2d",
+      "file_sha256": "10768b8b72f91ab9028c47e3c23a65cf6a38f35cb21040727b987a8cf394ae44",
+      "thumb_sha256": "d3d5222b35104b91d4987c17ae48242412032737bd9c6a8621392a2e3c567510",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Картофель по-деревенски"
+    },
+    {
+      "dish_id": "nuggets",
+      "file": "nuggets.webp",
+      "thumb": "nuggets-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Some_chicken_nuggets.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/d/d3/Some_chicken_nuggets.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Some chicken nuggets.jpg",
+      "author": "K1234567890y",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2014-01-16T23:00:05Z",
+      "commons_sha1": "e416adc16c1c5fad547be857de8632a6b700645d",
+      "original_size": "1768x1520",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "2484a667d24352093bafd613cb0ce7476bf8ea2436c3bf4bc101d08a3010e85e",
+      "file_sha256": "8b614c64d8be6a6242b682550669ec75e2d6bbaec5942d3ee541758592ffe889",
+      "thumb_sha256": "dc906db16c33fc6ccb4947c51c821d78384d0fce933a401af5d6a43423d3a81d",
+      "dish_name": "Куриные наггетсы",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "exact",
+      "match_note": "домашние наггетсы; 6 кусочков",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
+      "dish_id": "wings",
+      "file": "wings.webp",
+      "thumb": "wings-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/cooking-chicken-wings/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Cooking Chicken Wings",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/cooking-chicken-wings/",
+          "http": 200,
+          "statement": "ng Chicken Wings' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "b09485bd8306b331225cbc3d363e0e905b347e58a19eefe9368fba72830cf312"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1100x733",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "977x732 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "63d2cea65e8c2decb11b3844ec2f49cf416d82ecc20fd3809d80f17fec347943",
+      "file_sha256": "9c71f7676b22bb0019e0a6bc2b063d3a36bdfd88b6ad6169c35648e5e57cc092",
+      "thumb_sha256": "019fe1cc09f8228db67a480104b4a68fe2969d13588dc34b43f73b702b517ec6",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Куриные крылышки"
+    },
+    {
+      "dish_id": "cheese-sticks",
+      "file": "cheese-sticks.webp",
+      "thumb": "cheese-sticks-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Round_Table_Pizza_-_October_2024_-_Sarah_Stierch.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Round_Table_Pizza_-_October_2024_-_Sarah_Stierch.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Round Table Pizza - October 2024 - Sarah Stierch.jpg",
+      "author": "Missvain",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2024-10-19T03:37:44Z",
+      "commons_sha1": "e32be7c0de1c597a6caabcb9f215eb1a21a53fc0",
+      "original_size": "4032x3024",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.4)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "9295f1fda5b5e47a93c0e3ed2efc130d64a261e35b5a294d7905f4b62187d7f4",
+      "file_sha256": "8ae49bbefc50e3086a4bec47a679c566f902b42ff76b17e5d891281f6e7dbc63",
+      "thumb_sha256": "00ce14d283e35638f51b393f8560bc90f4f7ba3b3050e47f27581baab574021e",
+      "dish_name": "Сырные палочки",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "exact",
+      "match_note": "",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
+      "dish_id": "onion-rings",
+      "file": "onion-rings.webp",
+      "thumb": "onion-rings-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Beer_Battered_Onion_Rings_-_RV90_-_20241107-133409.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/7/76/Beer_Battered_Onion_Rings_-_RV90_-_20241107-133409.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Beer Battered Onion Rings - RV90 - 20241107-133409.jpg",
+      "author": "RegionVisitor90",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2024-11-22T22:56:38Z",
+      "commons_sha1": "033c718d667a8ca9f9a26542a7eb15e561c49ed8",
+      "original_size": "3024x4032",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.25), увеличение ×1.2",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "a8887238c32c636bf688fb62ba8f546da8b4ab939a2eb48336b9ab1181a229ee",
+      "file_sha256": "e1fd44d61b8009455f3c921107a785c5a1cf9433564a089de1086b34b01e50b4",
+      "thumb_sha256": "5d8afade340d75856d4252b84c06b276605c532dd28ad2a9616591c7adec943a",
+      "dish_name": "Луковые кольца",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "exact",
+      "match_note": "",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
+      "dish_id": "americano",
+      "file": "americano.webp",
+      "thumb": "americano-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/coffee-in-cafe-2/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Coffee in Cafe",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/coffee-in-cafe-2/",
+          "http": 200,
+          "statement": "k Coffee in Cafe' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "e8412c1b95c1ec46be05d8d25987b9a4cb6728344c11f15c4c6b41d62485e03f"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "4000x2667",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "2a83c4f0a20f205f2db70039dc556812964413759443eec0f6e0ac841512f7dc",
+      "file_sha256": "127426556c2ee154e86d9f36bab79567862bd4b8a9842409acfdf27541c4fea9",
+      "thumb_sha256": "b150d3a0e717d34c4ad181996e8a009a2bb0c8b745b97aa64e595de76999deec",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Американо"
+    },
+    {
+      "dish_id": "cappuccino",
+      "file": "cappuccino.webp",
+      "thumb": "cappuccino-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Negative Space",
+      "source_url": "https://negativespace.co/cappuccino-coffee-love-heart/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Cappuccino Coffee Love Heart",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника Negative Space и на странице лицензии сайта: https://negativespace.co/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://negativespace.co/cappuccino-coffee-love-heart/",
+          "http": 200,
+          "statement": "#039;Cappuccino Coffee Love Heart' with a CC0 license and use the image however and wherever you like",
+          "page_sha256": "b14abf927e848920dbe3671cb7d899f4105026d90b758c16870b308fb74ee857"
+        },
+        "site_license_page": {
+          "checked_url": "https://negativespace.co/license/",
+          "http": 200,
+          "statement": "CC0 License - NegativeSpace",
+          "page_sha256": "091d2ee8f9869afc7322039c259e113748f54dab48eeee8e2027b2f09fb48f81"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1062x708",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "944x708 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "f4fdae36b7c8e5a8d3ff96d94161f4e6da3243ab3fd9d629d837f67c9e11e013",
+      "file_sha256": "ef0348fcdf840bf55779c3224e282cd6a3f307b90135dc774aed99e0c5762650",
+      "thumb_sha256": "68c28c9fe0a6166a9dc9cfd3f00cbea7d36001be89d21aaee81fd6a22183a671",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Капучино"
+    },
+    {
+      "dish_id": "lemonade",
+      "file": "lemonade.webp",
+      "thumb": "lemonade-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/lemonade-pitcher/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Lemonade Pitcher",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/lemonade-pitcher/",
+          "http": 200,
+          "statement": "Lemonade Pitcher' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "a40c7d9c3aa5068cdf5b7bc1b413fc477c3de265229b1f61d29b91a9712d6bea"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1100x733",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "977x732 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "d935de54ef180a85b8cdaa7d547e63861f991a7a485896ed9987647bef0fded6",
+      "file_sha256": "02995ef41c85901bf17d9d13462bf182057c9c96981a07cf7359cc1969ce2b7b",
+      "thumb_sha256": "bcd235c01a70b6ca064f3af1ca2df8a8546e287a0c090877e723497feaf2a1ac",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Домашний лимонад"
+    },
+    {
+      "dish_id": "syrniki",
+      "file": "syrniki.webp",
+      "thumb": "syrniki-thumb.webp",
+      "source_type": "stock",
+      "source_name": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:%D0%A1%D0%B8%D1%80%D0%BD%D0%B8%D0%BA%D0%B8_%D1%83_%D0%B3%D0%BE%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE-%D1%80%D0%B5%D1%81%D1%82%D0%BE%D1%80%D0%B0%D0%BD%D0%BD%D0%BE%D0%BC%D1%83_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D1%96_%22%D0%9C%D0%B8%D1%81%D0%BB%D0%B8%D0%B2%D1%81%D1%8C%D0%BA%D0%B8%D0%B9_%D0%B4%D0%B2%D1%96%D1%80%22._%D0%9A%D0%B8%D1%97%D0%B2.2025_1.jpg",
+      "file_url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/%D0%A1%D0%B8%D1%80%D0%BD%D0%B8%D0%BA%D0%B8_%D1%83_%D0%B3%D0%BE%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE-%D1%80%D0%B5%D1%81%D1%82%D0%BE%D1%80%D0%B0%D0%BD%D0%BD%D0%BE%D0%BC%D1%83_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D1%96_%22%D0%9C%D0%B8%D1%81%D0%BB%D0%B8%D0%B2%D1%81%D1%8C%D0%BA%D0%B8%D0%B9_%D0%B4%D0%B2%D1%96%D1%80%22._%D0%9A%D0%B8%D1%97%D0%B2.2025_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "original_title": "Сирники у готельно-ресторанному комплексі \"Мисливський двір\". Київ.2025 1.jpg",
+      "author": "Мандрівниця",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+      "credit": "Own work",
+      "file_timestamp": "2026-02-02T20:47:54Z",
+      "commons_sha1": "97d7ecd5734a299afdfe7c46dd30a3e3230b13c6",
+      "original_size": "3024x2744",
+      "retrieved_at": "2026-11-25",
+      "checked_by": "Claude (проверка лицензии файла через API Commons + визуальный отбор и сверка с составом блюда)",
+      "processing": {
+        "crop": "4:3, фокус (0.4, 0.45), увеличение ×1.3",
+        "main": "1200x900 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "ae9cf2a17cfd041d1baf1087c855a96c66e158acd8237955690a3f35fd987454",
+      "file_sha256": "8751cad6296ded15b5ed202032efb01bc6d23b99f112ef478fb9e6ac02170698",
+      "thumb_sha256": "1ac1fbf56bdebe756b5cbbd2def86ee13fbb375e3fb5e91c84e90f5c4b182544",
+      "dish_name": "Сырники",
+      "license_evidence": {
+        "commons_api": {
+          "LicenseShortName": "CC0",
+          "AttributionRequired": "false",
+          "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+          "rechecked": "2026-11-25"
+        }
+      },
+      "match": "approximate",
+      "match_note": "сырники со сметаной и ягодным соусом; на подаче есть попкорн и соус, которых нет в описании блюда",
+      "photo_quality": "любительский снимок (не студийная съёмка)"
+    },
+    {
+      "dish_id": "cheesecake",
+      "file": "cheesecake.webp",
+      "thumb": "cheesecake-thumb.webp",
+      "source_type": "stock",
+      "source_name": "ISO Republic",
+      "source_url": "https://isorepublic.com/photo/cheesecake-slice/",
+      "file_url": "(скачан с этой страницы источника)",
+      "original_title": "Cheesecake Slice",
+      "author": "не указан на странице источника",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_verification": "заявление о лицензии на странице самого снимка у первоисточника ISO Republic и на странице лицензии сайта: https://isorepublic.com/license/",
+      "license_evidence": {
+        "page": {
+          "checked_url": "https://isorepublic.com/photo/cheesecake-slice/",
+          "http": 200,
+          "statement": "Cheesecake Slice' and use it in both your personal and commercial projects. CC0. No attribution.",
+          "page_sha256": "ed2748ca5ba5eb74596964021ab4a46979cebffe5ecdcd6e5d7ac1543dec9c88"
+        },
+        "site_license_page": {
+          "checked_url": "https://isorepublic.com/license/",
+          "http": 200,
+          "statement": "CC0 License All photo and video downloads on ISORepublic.com are free for both personal and commercial use and...\" />",
+          "page_sha256": "c8908a6e30a2c98ca7eeaa97daedeaa3ddc90c5f3786bcf2b17b06dc0100b393"
+        }
+      },
+      "retrieved_at": "2026-11-18",
+      "checked_by": "Claude (чтение страницы первоисточника, обычный запрос без обхода защит) + визуальный отбор",
+      "original_size": "1100x733",
+      "processing": {
+        "crop": "4:3, фокус (0.5, 0.5)",
+        "main": "977x732 WebP q80",
+        "thumb": "480x360 WebP q78",
+        "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+      },
+      "original_sha256": "69fd10138b807eb2d1e84404fffbe077d9eaaca4d1f824c5ed3a0b7f16697454",
+      "file_sha256": "067c77d283b91bda64c6f4d556290e9a7898c3374add0dc9f89e972b5b2e7980",
+      "thumb_sha256": "68eb03ac40162eda7160d135428ad059806743775ac8c039314e077c82618dd8",
+      "previous_source": "rawpixel (через Openverse)",
+      "dish_name": "Чизкейк"
+    }
+  ],
+  "without_photo": [
+    {
+      "dish_id": "chicken-pizza",
+      "dish_name": "Пицца с курицей",
+      "reason": "нет подходящего фото: в свободных источниках нет снимка пиццы, на котором курица очевидна (найденные — любительские кадры с другими начинками)"
+    },
+    {
+      "dish_id": "grilled-vegetables",
+      "dish_name": "Овощи гриль",
+      "reason": "нет подходящего фото: найдены только мясо на гриле, шашлык и кадры низкого качества"
+    },
+    {
+      "dish_id": "black-tea",
+      "dish_name": "Чай чёрный",
+      "reason": "нет подтверждаемого фото: снимок из PxHere не удалось подтвердить (HTTP 521); найденные на первоисточниках CC0 кадры — чайник или чашка с десертами, не чёрный чай"
+    },
+    {
+      "dish_id": "blini",
+      "dish_name": "Блины со сгущёнкой",
+      "reason": "нет подтверждаемого фото: снимок из PxHere не удалось подтвердить (HTTP 521); на первоисточниках CC0 блинов не найдено"
+    },
+    {
+      "dish_id": "cheese-sauce",
+      "dish_name": "Сырный соус",
+      "reason": "нет подходящего фото: в свободных источниках только бутылки с торговой маркой, начос и сэндвичи; по решению владельца пока заглушка, требования — registry/SAUCE_PHOTO_REQUIREMENTS.md"
+    },
+    {
+      "dish_id": "bbq-sauce",
+      "dish_name": "Соус барбекю",
+      "reason": "фото снято по решению владельца: на снимке была стеклянная банка (требование — не банки, упаковки и бутылки); новое фото в едином ресторанном стиле будет добавлено позже, требования — registry/SAUCE_PHOTO_REQUIREMENTS.md; до этого показывается заглушка"
+    }
+  ],
+  "rejected_groups": [
+    {
+      "group": "товарные знаки в кадре",
+      "examples": "Big Mac, Burger King, Popeyes, Shake Shack, McDonald's, Costa, Heinz, Sauchef",
+      "reason": "чужой товарный знак на сайте кафе; не использованы"
+    },
+    {
+      "group": "не то блюдо",
+      "examples": "паста с креветками вместо пасты с курицей; растительные наггетсы «Impossible»; американские панкейки вместо сырников; салат с моцареллой вместо греческого; Гамбург (город) вместо гамбургера",
+      "reason": "фото не соответствует блюду"
+    },
+    {
+      "group": "не фотографии",
+      "examples": "иллюстрации, клипарт, наклейки, гравюры, винтажные плакаты",
+      "reason": "нужны реалистичные фотографии"
+    },
+    {
+      "group": "низкое качество",
+      "examples": "тёмные, засвеченные, с посторонними предметами и людьми в кадре, смазанные",
+      "reason": "не соответствует требованиям к аппетитности и единому стилю"
+    },
+    {
+      "group": "лицензия",
+      "examples": "снимки с лицензиями CC BY и CC BY-SA, а также материалы Unsplash, Pexels и Pixabay",
+      "reason": "не рассматривались: CC BY и CC BY-SA требуют указания автора, что противоречит требованию «без ссылок на источники»; у Unsplash, Pexels и Pixabay программный доступ требует ключа API и условий, которые не были согласованы"
+    }
+  ],
+  "review_stats": {
+    "viewed_visually": 508,
+    "selected": 23,
+    "note": "счёт с повторами: один снимок мог попадать в выборки нескольких блюд"
+  },
+  "round2_review": {
+    "date": "2026-11-18",
+    "method": "в XMP-метаданных самих файлов rawpixel указан первоисточник; лицензия проверена на странице первоисточника обычным запросом (без обхода защит); при совпадении — взят файл первоисточника, иначе снимок заменён или убран",
+    "result": {
+      "rawpixel_photos_reviewed": 20,
+      "same_photo_from_first_party": 7,
+      "same_photo_from_commons_original": 2,
+      "replaced_by_other_photo": 8,
+      "removed_placeholder": 3
+    },
+    "pxhere_note": "PxHere заявляет CC0 для всех фото (страница https://pxhere.com/en/license), но его сервер изображений во время проверки отвечал HTTP 521; без файла нельзя подтвердить, что снимок rawpixel — именно этот. Если сервер заработает, эти 8 снимков (пепперони, картофель фри, американо, лимонад, чизкейк, «Цезарь», чёрный чай, блины) можно перепроверить."
+  },
+  "replaced_photos": [
+    {
+      "dish_id": "bacon-burger",
+      "dish_name": "Бургер с беконом",
+      "action": "тот же снимок, взят файл первоисточника",
+      "why": "лицензия подтверждена на странице первоисточника; совпадение с копией rawpixel подтверждено перцептивным хешем (расстояние 10 из 256) и визуально",
+      "was": "rawpixel — Burger Bun",
+      "now": "ISO Republic — Burger Bun"
+    },
+    {
+      "dish_id": "greek-salad",
+      "dish_name": "Греческий салат",
+      "action": "тот же снимок, взят файл первоисточника",
+      "why": "лицензия подтверждена на странице первоисточника; совпадение с копией rawpixel подтверждено перцептивным хешем (расстояние 0 из 256) и визуально",
+      "was": "rawpixel — Greek Salad Feta Cheese, Red",
+      "now": "ISO Republic — Greek Salad"
+    },
+    {
+      "dish_id": "vegetable-salad",
+      "dish_name": "Овощной салат",
+      "action": "тот же снимок, взят файл первоисточника",
+      "why": "лицензия подтверждена на странице первоисточника; совпадение с копией rawpixel подтверждено перцептивным хешем (расстояние 3 из 256) и визуально",
+      "was": "rawpixel — Healthy vegetable salad plate",
+      "now": "ISO Republic — Healthy Salad"
+    },
+    {
+      "dish_id": "pasta-bolognese",
+      "dish_name": "Паста Болоньезе",
+      "action": "тот же снимок, взят файл первоисточника",
+      "why": "лицензия подтверждена на странице первоисточника; совпадение с копией rawpixel подтверждено перцептивным хешем (расстояние 1 из 256) и визуально",
+      "was": "rawpixel — Free spaghetti image",
+      "now": "ISO Republic — Pasta Spaghetti"
+    },
+    {
+      "dish_id": "rice-beef",
+      "dish_name": "Рис с говядиной",
+      "action": "тот же снимок, взят файл первоисточника",
+      "why": "лицензия подтверждена на странице первоисточника; совпадение с копией rawpixel подтверждено перцептивным хешем (расстояние 0 из 256) и визуально",
+      "was": "rawpixel — Free ground beef rice bowl",
+      "now": "Foodiesfeed — Ground beef rice bowl"
+    },
+    {
+      "dish_id": "rustic-potatoes",
+      "dish_name": "Картофель по-деревенски",
+      "action": "тот же снимок, взят файл первоисточника",
+      "why": "лицензия подтверждена на странице первоисточника; совпадение с копией rawpixel подтверждено перцептивным хешем (расстояние 0 из 256) и визуально",
+      "was": "rawpixel — Free roasted potato image",
+      "now": "Foodiesfeed — Roasted potatoes with seasoning"
+    },
+    {
+      "dish_id": "cappuccino",
+      "dish_name": "Капучино",
+      "action": "тот же снимок, взят файл первоисточника",
+      "why": "лицензия подтверждена на странице первоисточника; совпадение с копией rawpixel подтверждено перцептивным хешем (расстояние 2 из 256) и визуально",
+      "was": "rawpixel — Free cappuccino coffee heart latte",
+      "now": "Negative Space — Cappuccino Coffee Love Heart"
+    },
+    {
+      "dish_id": "cheeseburger",
+      "dish_name": "Чизбургер",
+      "action": "тот же снимок, взят оригинал с Wikimedia Commons",
+      "why": "в XMP файла rawpixel указан первоисточник «Wikimedia Commons»; найден файл с CC0 на уровне файла; совпадение подтверждено хешем (расстояние 2 из 256)",
+      "was": "rawpixel — Close-up cheeseburger",
+      "now": "Wikimedia Commons — Yummy cheeseburger close-up.jpg"
+    },
+    {
+      "dish_id": "chickenburger",
+      "dish_name": "Чикенбургер",
+      "action": "тот же снимок, взят оригинал с Wikimedia Commons",
+      "why": "в XMP файла rawpixel указан первоисточник «Wikimedia Commons»; найден файл с CC0 на уровне файла; совпадение подтверждено хешем (расстояние 4 из 256)",
+      "was": "rawpixel — Large fried chicken sandwich topped",
+      "now": "Wikimedia Commons — Chicken Sandwich (Unsplash).jpg"
+    },
+    {
+      "dish_id": "classic-burger",
+      "dish_name": "Классический бургер",
+      "action": "заменено другим снимком",
+      "why": "первоисточник (PickupImage) закрыт проверкой защиты (HTTP 403): лицензию подтвердить нельзя",
+      "was": "rawpixel — Free burger image",
+      "now": "ISO Republic — Burger in Restaurant"
+    },
+    {
+      "dish_id": "margherita",
+      "dish_name": "Пицца Маргарита",
+      "action": "заменено другим снимком",
+      "why": "оригинал на Commons найти не удалось, подтвердить лицензию нельзя",
+      "was": "rawpixel — Delicious homemade pizza, Italian food",
+      "now": "ISO Republic — Pizza Margherita"
+    },
+    {
+      "dish_id": "pepperoni-pizza",
+      "dish_name": "Пицца Пепперони",
+      "action": "заменено другим снимком",
+      "why": "первоисточник PxHere: лицензия CC0 подтверждена на сайте, но сервер изображений не отвечает (HTTP 521), совпадение файла проверить нельзя",
+      "was": "rawpixel — Free close pepperoni pizza oven",
+      "now": "ISO Republic — Pepperoni Pizza"
+    },
+    {
+      "dish_id": "fries",
+      "dish_name": "Картофель фри",
+      "action": "заменено другим снимком",
+      "why": "то же: PxHere, HTTP 521",
+      "was": "rawpixel — Free french fries image",
+      "now": "Negative Space — French Fries Chips Thin"
+    },
+    {
+      "dish_id": "wings",
+      "dish_name": "Куриные крылышки",
+      "action": "заменено другим снимком",
+      "why": "первоисточник Free-Images — агрегатор, сам просит проверять лицензию у источника; подтвердить нельзя",
+      "was": "rawpixel — Grilled chicken, delicious food",
+      "now": "ISO Republic — Cooking Chicken Wings"
+    },
+    {
+      "dish_id": "americano",
+      "dish_name": "Американо",
+      "action": "заменено другим снимком",
+      "why": "PxHere, HTTP 521",
+      "was": "rawpixel — Free coffee beans closeup photo",
+      "now": "ISO Republic — Coffee in Cafe"
+    },
+    {
+      "dish_id": "lemonade",
+      "dish_name": "Домашний лимонад",
+      "action": "заменено другим снимком",
+      "why": "PxHere, HTTP 521",
+      "was": "rawpixel — Free lemonade image",
+      "now": "ISO Republic — Lemonade Pitcher"
+    },
+    {
+      "dish_id": "cheesecake",
+      "dish_name": "Чизкейк",
+      "action": "заменено другим снимком",
+      "why": "PxHere, HTTP 521",
+      "was": "rawpixel — Free strawberry cheesecake slice image",
+      "now": "ISO Republic — Cheesecake Slice"
+    },
+    {
+      "dish_id": "caesar",
+      "dish_name": "caesar",
+      "action": "снимок убран, оставлена заглушка",
+      "why": "PxHere, HTTP 521: подтвердить нельзя; подходящей замены с проверяемой лицензией нет",
+      "was": "rawpixel — Free caesar salad image",
+      "now": "заглушка"
+    },
+    {
+      "dish_id": "black-tea",
+      "dish_name": "black-tea",
+      "action": "снимок убран, оставлена заглушка",
+      "why": "PxHere, HTTP 521: подтвердить нельзя; подходящей замены с проверяемой лицензией нет",
+      "was": "rawpixel — Free hot tea glass cup",
+      "now": "заглушка"
+    },
+    {
+      "dish_id": "blini",
+      "dish_name": "blini",
+      "action": "снимок убран, оставлена заглушка",
+      "why": "PxHere, HTTP 521: подтвердить нельзя; подходящей замены с проверяемой лицензией нет",
+      "was": "rawpixel — Free crepe image",
+      "now": "заглушка"
+    },
+    {
+      "dish_id": "pasta-chicken",
+      "dish_name": "Паста с курицей",
+      "action": "заменён снимок",
+      "why": "лучшее соответствие блюду",
+      "was": "Wikimedia Commons — Jacob's Restaurant - December 2025 - Sarah Stierch 05.jpg",
+      "now": "Wikimedia Commons — Jacob's Restaurant - December 2025 - Sarah Stierch 05.jpg"
+    },
+    {
+      "dish_id": "syrniki",
+      "dish_name": "Сырники",
+      "action": "заменён снимок",
+      "why": "лучшее соответствие блюду",
+      "was": "Wikimedia Commons — Сирники у готельно-ресторанному комплексі \"Мисливський двір\". Київ.2025 1.jpg",
+      "now": "Wikimedia Commons — Сирники у готельно-ресторанному комплексі \"Мисливський двір\". Київ.2025 1.jpg"
+    },
+    {
+      "dish_id": "onion-rings",
+      "dish_name": "Луковые кольца",
+      "action": "заменён снимок",
+      "why": "прежний снимок — индийская пакора (другое блюдо); Honest Burgers отклонён: в кадре бренд ресторана",
+      "was": "Wikimedia Commons — Onion Ring Pakora.JPG",
+      "now": "Wikimedia Commons — Beer Battered Onion Rings - RV90 - 20241107-133409.jpg"
+    }
+  ],
+  "removed_photos": [
+    {
+      "dish_id": "bbq-sauce",
+      "dish_name": "Соус барбекю",
+      "removed": "2026-11-25",
+      "why": "банка вместо соуса в соуснице — не соответствует требованиям владельца",
+      "was": "Wikimedia Commons — BBQ Sauce Cookbook.png",
+      "files_archived": [
+        "registry/removed-photos/bbq-sauce.webp",
+        "registry/removed-photos/bbq-sauce-thumb.webp"
+      ],
+      "entry": {
+        "dish_id": "bbq-sauce",
+        "file": "bbq-sauce.webp",
+        "thumb": "bbq-sauce-thumb.webp",
+        "source_type": "stock",
+        "source_name": "Wikimedia Commons",
+        "source_url": "https://commons.wikimedia.org/wiki/File:BBQ_Sauce_Cookbook.png",
+        "file_url": "https://upload.wikimedia.org/wikipedia/commons/f/fa/BBQ_Sauce_Cookbook.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "original_title": "BBQ Sauce Cookbook.png",
+        "author": "QuickQuokka",
+        "license": "CC0 1.0",
+        "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "license_verification": "API Wikimedia Commons: LicenseShortName=CC0, AttributionRequired=false, Creative Commons Zero, Public Domain Dedication",
+        "credit": "Own work",
+        "file_timestamp": "2022-03-16T17:03:37Z",
+        "commons_sha1": "b79184097656313a8909f004977090477b0e8831",
+        "original_size": "1920x1920",
+        "retrieved_at": "2026-11-18",
+        "checked_by": "Claude (автоматическая проверка метаданных лицензии + визуальный отбор)",
+        "processing": {
+          "crop": "4:3, фокус (0.5, 0.5)",
+          "main": "1200x900 WebP q80",
+          "thumb": "480x360 WebP q78",
+          "adjustments": "автоконтраст по яркости 0,3% (цвета не сдвигаются), unsharp mask; без тонирования"
+        },
+        "original_sha256": "91927349847bcabf5a45b8011313a9098f0ae27a71db5d190fc263b27ee9f6c7",
+        "file_sha256": "96583b146277e8ae881e8014fa434d057a56c1004a132b1d6733a6478d5ca305",
+        "thumb_sha256": "d64dd7c8cb2739ffeee87aed7cb2bbf2f68b50644c7dfa929d2d527b322a6f62",
+        "dish_name": "Соус барбекю",
+        "license_evidence": {
+          "commons_api": {
+            "LicenseShortName": "CC0",
+            "AttributionRequired": "false",
+            "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+            "rechecked": "2026-11-18"
+          }
+        },
+        "previous_source": "Wikimedia Commons (без изменений, лицензия перепроверена)"
+      }
+    }
+  ]
+}

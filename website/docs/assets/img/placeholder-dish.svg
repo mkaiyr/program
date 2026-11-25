@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Фото скоро появится">
+  <rect width="800" height="600" fill="#F5ECDD"/>
+  <rect x="24" y="24" width="752" height="552" rx="22" fill="none" stroke="#EADBC4" stroke-width="3" stroke-dasharray="10 12"/>
+  <g fill="none" stroke="#B4491F" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
+    <circle cx="400" cy="285" r="92"/><circle cx="400" cy="285" r="58"/>
+    <path d="M250 205v170M232 205v52a18 18 0 0 0 36 0v-52M250 375v0"/>
+    <path d="M552 205c-18 14-26 38-26 66 0 20 10 30 26 30v74M552 205v170"/>
+  </g>
+  <text x="400" y="470" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="30" fill="#675246">Фото скоро появится</text>
+</svg>

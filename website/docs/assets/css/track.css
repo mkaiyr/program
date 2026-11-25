@@ -1,0 +1,25 @@
+/* Демо-карта: страница отслеживания и метки на карте. Только токены из tokens.css. */
+.track-layout { display: grid; gap: var(--space-5); padding-bottom: var(--space-7); }
+.track-map { position: relative; order: -1; min-width: 0; }
+.track-card { padding: var(--space-5); display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
+.track-card h2 { margin: 0; font-size: var(--fs-lg); }
+#map { height: min(62vh, 26rem); min-height: 20rem; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--cream-100); overflow: hidden; z-index: 0; }
+@media (min-width: 60rem) { .track-layout { grid-template-columns: 23rem minmax(0, 1fr); align-items: start; } .track-map { order: 0; } #map { height: min(76vh, 38rem); } }
+.track-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.track-controls .btn { flex: 1 1 8rem; }
+.track-controls [hidden] { display: none; }
+.stages { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.stages li { padding: 0.45rem 0.8rem; border-radius: var(--radius-md); background: var(--cream-100); color: var(--text-muted); font-size: var(--fs-sm); font-weight: 600; }
+.stages .stage--done { background: var(--olive-100); color: var(--olive-700); }
+.stages .stage--current { background: var(--espresso-900); color: #fff; }
+.demo-chip { display: inline-block; padding: 0.15rem 0.6rem; border-radius: var(--radius-pill); background: var(--honey-100); color: var(--honey-700); font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.04em; }
+.map-demo-tag { position: absolute; top: var(--space-3); left: 3.4rem; z-index: 800; padding: 0.25rem 0.7rem; border-radius: var(--radius-pill); background: var(--honey-100); color: var(--honey-700); font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.05em; box-shadow: var(--shadow-sm); pointer-events: none; }
+.map-pin { background: none; border: 0; }
+.map-pin > span { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font: 800 0.78rem/1 var(--font-body); padding: 0.32rem 0.6rem; border-radius: var(--radius-pill); box-shadow: var(--shadow-md); }
+.map-pin--cafe > span { background: var(--espresso-900); color: #fff; }
+.map-pin--dest > span { background: var(--accent); color: var(--on-accent); }
+.map-pin--courier > span { background: #fff; color: var(--espresso-900); border: 2.5px solid var(--olive-700); padding: 0.4rem 0.7rem; }
+.map-pin--point > span { background: #fff; color: var(--espresso-900); border: 1.5px solid var(--field-border); font-size: 0.7rem; padding: 0.25rem 0.5rem; cursor: pointer; }
+.map-note { margin: var(--space-2) 0 0; }
+.track-card .select { width: 100%; max-width: 100%; }
+.track-card .kv { grid-template-columns: max-content minmax(0, 1fr); }

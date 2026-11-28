@@ -1,0 +1,1 @@
+16ec1fdd6f64cfc1eaf1720d641f1b3d5442905338ec4af7311466220952e05f  docs/drafts/17_staff_auth_compat.sql.draft

@@ -1,0 +1,12 @@
+05_kitchen_checks rc=3 | CONTEXT:  PL/pgSQL function inline_code_block line 4 at RAISE
+06_kitchen_menu_checks rc=0 | (1 row)
+07_menu_codes_checks rc=0 | (1 row)
+08_bar_stations_checks rc=0 | (1 row)
+09_station_menu_checks rc=0 | (1 row)
+10_order_deletion_checks rc=0 | (1 row)
+11_service_charge_void_checks rc=0 | (1 row)
+12_cash_shifts_checks rc=0 | (1 row)
+13_staff_checks rc=0 | (1 row)
+14_reports_checks rc=0 | (1 row)
+15_menu_item_archive_checks rc=0 | (1 row)
+16_menu_categories_checks rc=0 | (1 row)

@@ -1,0 +1,266 @@
+=== 2026-11-26 03:52:49 STAGE 1 PREFLIGHT ===
+[1] соединение:
+(eval):6: no such file or directory: /Library/PostgreSQL/17/bin/psql -h <HOME>/cashier_catalog_dev_pg/run -p 54323 -U catalog_dev_admin -d cashier_catalog_dev -X -At
+(eval):7: no such file or directory: /Library/PostgreSQL/17/bin/psql -h <HOME>/cashier_catalog_dev_pg/run -p 54323 -U catalog_dev_admin -d cashier_catalog_dev -X -At
+СТОП: соединение не то
+=== 2026-11-26 03:53:03 STAGE 1 PREFLIGHT (повтор) ===
+[1] соединение:
+
+СТОП: соединение не то
+=== 2026-11-26 03:53:19 STAGE 1 PREFLIGHT (повтор 2) ===
+[1] соединение:
+cashier_catalog_dev | порт 54323 | пользователь catalog_dev_admin | каталог данных <HOME>/cashier_catalog_dev_pg/data | сокет <HOME>/cashier_catalog_dev_pg/run | listen=[]
+OK: база, порт и каталог данных совпадают с ожидаемыми
+[2] процессы postgres:
+  535 /Library/PostgreSQL/17/bin/postgres -D /Library/PostgreSQL/17/data
+16859 /Library/PostgreSQL/17/bin/postgres -D <HOME>/cashier_catalog_dev_pg/data -p 54323 -c listen_addresses= -c uni
+[3] состояние БД до миграции:
+таблиц public=11 функций=63 orders=0 menu_items=0 profiles=0
+[4] миграция 18 ещё не применена:
+нет menu_item_public / нет media_assets
+[5] резервные копии:
+custom: <HOME>/cashier_catalog_dev_pg/work/backups/cashier_catalog_dev_before18_20261126_035319.dump
+plain (схема+данные): <HOME>/cashier_catalog_dev_pg/work/backups/cashier_catalog_dev_before18_20261126_035319.sql
+роли кластера: <HOME>/cashier_catalog_dev_pg/work/backups/globals_before18_20261126_035319.sql
+снимок схемы: <HOME>/cashier_catalog_dev_pg/work/snapshots/schema_before_18.sql
+записей в custom-дампе (проверка читаемости):      311
+total 664
+-rw-r--r--@ 1 dom  staff  182690 Nov 26 03:53 cashier_catalog_dev_before18_20261126_035319.dump
+-rw-r--r--@ 1 dom  staff  147970 Nov 26 03:53 cashier_catalog_dev_before18_20261126_035319.sql
+-rw-r--r--@ 1 dom  staff    1189 Nov 26 03:53 globals_before18_20261126_035319.sql
+[6] контрольные суммы миграций 01–16
+OK: репозиторий и рабочая копия идентичны (      16 файлов)
+git status sql/ и drafts: []
+16ec1fdd6f64cfc1eaf1720d641f1b3d5442905338ec4af7311466220952e05f  docs/drafts/17_staff_auth_compat.sql.draft
+[7] защищённые кластеры:
+127.0.0.1:5432 - accepting connections
+54322: [] (пусто = не запущен)
+ls: <HOME>/cashier_pgrst_test/pgdata/postmaster.pid: No such file or directory
+=== PREFLIGHT OK ===
+=== 2026-11-26 04:01:42 РЕПЕТИЦИЯ миграции 18 (rollback) ===
+1
+rc=
+--- после репетиции объектов миграции быть не должно:
+нет menu_item_public | updated_at: false | функций public=63
+=== 2026-11-26 04:06:03 ПРИМЕНЕНИЕ миграции 18 ===
+[a] соединение и состояние перед применением:
+cashier_catalog_dev | порт 54323 | <HOME>/cashier_catalog_dev_pg/data | таблиц public=11 | функций=63
+[b] резервные копии на месте:
+182690 <HOME>/cashier_catalog_dev_pg/work/backups/cashier_catalog_dev_before18_20261126_035319.dump
+147970 <HOME>/cashier_catalog_dev_pg/work/backups/cashier_catalog_dev_before18_20261126_035319.sql
+1189 <HOME>/cashier_catalog_dev_pg/work/backups/globals_before18_20261126_035319.sql
+[c] контрольные суммы 01–16 неизменны:
+не совпало: 0
+[d] контрольная сумма применяемого файла:
+edf91bcacbb90d22521d11e813d938ffdf609d5c18f0bc6c097248153dd4b4ff  <HOME>/cashier_catalog_dev_pg/work/v2/18_unified_catalog.sql
+[e] применение (psql -v ON_ERROR_STOP=1, миграция сама открывает и фиксирует транзакцию):
+код возврата psql = 0; ошибок в журнале: 0
+GRANT
+GRANT
+DO
+NOTIFY
+COMMIT
+[f] после применения:
+таблиц public=19 | функций=92 | menu_item_public=menu_item_public
+=== ПРИМЕНЕНО ===
+=== 2026-11-26 04:06:12 ТЕСТЫ миграции 18 ===
+rc=3
+psql:v2/tests/18_checks.sql:121: NOTICE:  service_role: EXECUTE на public_menu = t, на admin_catalog_diagnostics = t (политика 01–16, ключ только на сервере)
+psql:v2/tests/18_checks.sql:121: NOTICE:  ТЕСТ 1 (матрица прав по каталогу): OK
+psql:v2/tests/18_checks.sql:158: NOTICE:  ТЕСТ 2 (роли: anon / без пользователя / кассир / кухня / бар / неактивный админ / внутренние функции): OK
+psql:v2/tests/18_checks.sql:220: ERROR:  FAIL: дубль слага у другой категории — ожидалась ошибка SLUG_TAKEN, получено ERR|P0001|SLUG_RESERVED|burgers
+CONTEXT:  PL/pgSQL function pg_temp_32.bad(text,text,text) line 3 at RAISE
+SQL statement "SELECT pg_temp.bad(pg_temp.adm(format($q$select public.admin_set_category_public(%s, '{"slug":"burgers"}'::jsonb)::text$q$, c2)), 'SLUG_TAKEN', 'дубль слага у другой категории')"
+PL/pgSQL function inline_code_block line 13 at PERFORM
+=== 2026-11-26 04:06:38 ПОПРАВКА 18a ===
+BEGIN
+CREATE FUNCTION
+DO
+COMMIT
+rc=0
+0f5c4cb3f44fbd76c221c2c580f624462946c11863e7552b84453ac64ffdc4a1  18_unified_catalog.sql
+95d8b374fb4eee12d8b5d2dc18132564edf772795fb651175b376f30f59c8ee6  18a_slug_guard_fix.sql
+=== 2026-11-26 04:06:45 ТЕСТЫ миграции 18 (повтор после 18a) ===
+rc=3
+psql:v2/tests/18_checks.sql:121: NOTICE:  service_role: EXECUTE на public_menu = t, на admin_catalog_diagnostics = t (политика 01–16, ключ только на сервере)
+psql:v2/tests/18_checks.sql:121: NOTICE:  ТЕСТ 1 (матрица прав по каталогу): OK
+psql:v2/tests/18_checks.sql:158: NOTICE:  ТЕСТ 2 (роли: anon / без пользователя / кассир / кухня / бар / неактивный админ / внутренние функции): OK
+psql:v2/tests/18_checks.sql:220: NOTICE:  ТЕСТ 3 (категории, стабильность и резервирование слагов): OK
+psql:v2/tests/18_checks.sql:315: NOTICE:  ТЕСТ 4 (блюда: публикация, подтверждение цены, диагностика, архив): OK
+psql:v2/tests/18_checks.sql:381: NOTICE:  ТЕСТ 5 (медиа: регистрация, привязка, использование, защита удаления): OK
+psql:v2/tests/18_checks.sql:422: ERROR:  could not determine polymorphic type because input has type unknown
+CONTEXT:  SQL statement "SELECT pg_temp.bad(pg_temp.adm(format('select public.admin_set_menu_item_ingredients(%s, %L::jsonb)::text', it, (select jsonb_agg('bun')::text from generate_series(1, 41)))), 'INVALID_DATA', 'больше 40 позиций состава')"
+PL/pgSQL function inline_code_block line 28 at PERFORM
+=== 2026-11-26 04:07:00 ТЕСТЫ миграции 18 (повтор 3) ===
+rc=0
+psql:v2/tests/18_checks.sql:121: NOTICE:  service_role: EXECUTE на public_menu = t, на admin_catalog_diagnostics = t (политика 01–16, ключ только на сервере)
+psql:v2/tests/18_checks.sql:121: NOTICE:  ТЕСТ 1 (матрица прав по каталогу): OK
+psql:v2/tests/18_checks.sql:158: NOTICE:  ТЕСТ 2 (роли: anon / без пользователя / кассир / кухня / бар / неактивный админ / внутренние функции): OK
+psql:v2/tests/18_checks.sql:220: NOTICE:  ТЕСТ 3 (категории, стабильность и резервирование слагов): OK
+psql:v2/tests/18_checks.sql:315: NOTICE:  ТЕСТ 4 (блюда: публикация, подтверждение цены, диагностика, архив): OK
+psql:v2/tests/18_checks.sql:381: NOTICE:  ТЕСТ 5 (медиа: регистрация, привязка, использование, защита удаления): OK
+psql:v2/tests/18_checks.sql:422: NOTICE:  ТЕСТ 6 (справочники состава и аллергенов): OK
+psql:v2/tests/18_checks.sql:450: NOTICE:  ТЕСТ 7 (составное сохранение блюда, откат при ошибке): OK
+psql:v2/tests/18_checks.sql:495: NOTICE:  ТЕСТ 8 (формат public_menu, отсутствие внутренних полей и чужого состава): OK
+psql:v2/tests/18_checks.sql:521: NOTICE:  ТЕСТ 9 (окончательное удаление и резервирование слага, согласованность диагностики, updated_at): OK
+ВСЕ ПРОВЕРКИ МИГРАЦИИ 18 ПРОЙДЕНЫ
+=== 2026-11-26 04:07:46 POST-CHECK ===
+OK   | таблицы созданы (8) | 8
+OK   | RLS включён на всех новых таблицах
+OK   | политик на новых таблицах нет
+OK   | нет прав у anon/authenticated/PUBLIC на новых таблицах
+OK   | нет прав на последовательность media_assets_id_seq у клиентов
+OK   | menu_items.updated_at (not null, default now())
+OK   | триггер menu_items_touch включён
+OK   | шесть триггеров слагов включены (по 3 на таблицу: guard, touch, reserve)
+OK   | ограничения: пары веса и подтверждения, уникальность слагов
+OK   | внешние ключи: каскады и запрет удаления используемого медиа
+OK   | индекс menu_item_public_photo_idx
+OK   | все 29 функций созданы
+OK   | у всех новых функций search_path = пусто
+OK   | SECURITY DEFINER у всех новых функций, кроме четырёх чистых помощников
+OK   | внутренние функции недоступны anon/authenticated/PUBLIC
+OK   | admin_*: authenticated — да; anon и PUBLIC — нет
+OK   | public_menu: anon и authenticated — да; PUBLIC — нет
+OK   | anon выполняет только employee_login_email и public_menu
+OK   | ни одна функция public не доступна PUBLIC
+OK   | итого объектов public: таблиц 19, функций 92, триггеров 15 | 19 / 92 / 15
+OK   | новые таблицы пусты (данные не создавались)
+OK   | прежние объекты на месте: функции 01–16 (63) и их права не изменились
+ИТОГ: все проверки post-check пройдены (22)
+=== схема после; сравнение с состоянием до ===
+строк diff:     1622; удалённых/изменённых строк ('<'): 0; добавленных ('>'): 1554
+--- все удалённые/изменённые строки ('<'):
+=== 2026-11-26 04:08:51 РЕГРЕССИЯ sql/tests/05–16 ПОСЛЕ миграции 18 ===
+05_kitchen_checks rc=3 | CONTEXT:  PL/pgSQL function inline_code_block line 4 at RAISE
+06_kitchen_menu_checks rc=0 | (1 row)
+07_menu_codes_checks rc=0 | (1 row)
+08_bar_stations_checks rc=0 | (1 row)
+09_station_menu_checks rc=0 | (1 row)
+10_order_deletion_checks rc=0 | (1 row)
+11_service_charge_void_checks rc=0 | (1 row)
+12_cash_shifts_checks rc=0 | (1 row)
+13_staff_checks rc=3 | PL/pgSQL function inline_code_block line 8 at IF
+14_reports_checks rc=0 | (1 row)
+15_menu_item_archive_checks rc=0 | (1 row)
+16_menu_categories_checks rc=0 | (1 row)
+--- итог: «ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ» по файлам (ДО / ПОСЛЕ):
+05_kitchen_checks                  до=0 после=0
+06_kitchen_menu_checks             до=1 после=1
+07_menu_codes_checks               до=1 после=1
+08_bar_stations_checks             до=1 после=1
+09_station_menu_checks             до=1 после=1
+10_order_deletion_checks           до=1 после=1
+11_service_charge_void_checks      до=1 после=1
+12_cash_shifts_checks              до=1 после=1
+13_staff_checks                    до=1 после=0
+14_reports_checks                  до=1 после=1
+15_menu_item_archive_checks        до=1 после=1
+16_menu_categories_checks          до=1 после=1
+--- данные в базе после всех прогонов (должно быть 0):
+0 profiles, 0 menu_items, 0 categories, 0 orders, 0 auth.users, 0 menu_item_public, 0 media, 0 reservations
+--- тело _slug_guard в базе = телу в итоговом файле миграции:
+совпадает: True
+--- исходники: 01–16 и черновики
+файлов 01–16 с отличиями: 0
+в рабочей копии с отличиями: 0
+docs/drafts/17_staff_auth_compat.sql.draft: OK
+git status (весь репозиторий): [?? tests/test_price_validation.py ]
+82fed2d ci: GitHub Pages workflow for website/docs; README: website section
+--- защищённые кластеры и Production:
+127.0.0.1:5432 - accepting connections
+54322: [] (пусто = не запущен)
+ls: <HOME>/cashier_pgrst_test/pgdata/postmaster.pid: No such file or directory
+  535 /Library/PostgreSQL/17/bin/postgres -D /Library/PostgreSQL/17/data
+16859 /Library/PostgreSQL/17/bin/postgres -D <HOME>/cashier_catalog_dev_pg/data -p 54323 -c list
+Production (<PRODUCTION_PROJECT_REF>): сетевых подключений не открывалось; в журнале команд упоминаний нет: 0
+=== 2026-11-26 04:09:49 РЕГРЕССИЯ ПОСЛЕ 18, исправленный временный набор ===
+13_staff_checks, прогон 1: rc=0 пройдено=1
+13_staff_checks, прогон 2: rc=0 пройдено=1
+13_staff_checks, прогон 3: rc=0 пройдено=1
+05_kitchen_checks rc=3 | CONTEXT:  PL/pgSQL function inline_code_block line 4 at RAISE
+06_kitchen_menu_checks rc=0 | (1 row)
+07_menu_codes_checks rc=0 | (1 row)
+08_bar_stations_checks rc=0 | (1 row)
+09_station_menu_checks rc=0 | (1 row)
+10_order_deletion_checks rc=0 | (1 row)
+11_service_charge_void_checks rc=0 | (1 row)
+12_cash_shifts_checks rc=0 | (1 row)
+13_staff_checks rc=0 | (1 row)
+14_reports_checks rc=0 | (1 row)
+15_menu_item_archive_checks rc=0 | (1 row)
+16_menu_categories_checks rc=0 | (1 row)
+--- ПРОЙДЕНО по файлам (до миграции [старый временный набор] / после):
+05_kitchen_checks                  до=0 после=0
+06_kitchen_menu_checks             до=1 после=1
+07_menu_codes_checks               до=1 после=1
+08_bar_stations_checks             до=1 после=1
+09_station_menu_checks             до=1 после=1
+10_order_deletion_checks           до=1 после=1
+11_service_charge_void_checks      до=1 после=1
+12_cash_shifts_checks              до=1 после=1
+13_staff_checks                    до=1 после=1
+14_reports_checks                  до=1 после=1
+15_menu_item_archive_checks        до=1 после=1
+16_menu_categories_checks          до=1 после=1
+после прогонов: profiles=0 auth.users=0 menu_items=0 orders=0
+=== 2026-11-26 04:10:07 ЗАВЕРШАЮЩИЕ ПРОВЕРКИ ===
+[1] повторное применение миграции 18 должно остановиться на pre-check и ничего не менять:
+psql:v2/18_unified_catalog.sql:50: ERROR:  ОСТАНОВЛЕНО: миграция 18 уже применена (или применена частично): таблицы media_assets, menu_category_public, menu_item_public, public_slug_reservations, allergens, ingredients, ingredient_allergens, menu_item_ingredie
+после: таблиц public=19 функций=92
+[2] разница применённого варианта и итогового файла (должна быть только в _slug_guard):
+<   if exists (select 1 from public.public_slug_reservations r where r.kind = v_kind and r.slug = new.slug) then
+>   -- «зарезервирован» = использован раньше и сейчас НИКЕМ не занят; занятый слаг даст SLUG_TAKEN от уникального ограничения
+>   if exists (select 1 from public.public_slug_reservations r where r.kind = v_kind and r.slug = new.slug)
+>      and not (case v_kind when 'category' then exists (select 1 from public.menu_category_public x where x.slug = new.slug)
+>                           else exists (select 1 from public.menu_item_public x where x.slug = new.slug) end) then
+[3] стабильность тестов миграции 18 (3 прогона подряд):
+прогон 1: rc=0 | 9 групп OK | psql:v2/tests/18_checks.sql:521: NOTICE:  ТЕСТ 9 (окончательное удаление и резервирование слага, согласованность диагностики, updated_at): OK
+прогон 2: rc=0 | 9 групп OK | psql:v2/tests/18_checks.sql:521: NOTICE:  ТЕСТ 9 (окончательное удаление и резервирование слага, согласованность диагностики, updated_at): OK
+прогон 3: rc=0 | 9 групп OK | psql:v2/tests/18_checks.sql:521: NOTICE:  ТЕСТ 9 (окончательное удаление и резервирование слага, согласованность диагностики, updated_at): OK
+[4] post-check повторно:
+ИТОГ: все проверки post-check пройдены (22)
+[5] данные в базе:
+menu_items=0 orders=0 profiles=0 новые таблицы=0
+[6] итоговые снимки:
+схема не менялась со времени сравнения
+[7] файлы этапа:
+11170 v2/18_postcheck.sql
+52117 v2/18_rehearsal_rollback.sql
+51808 v2/18_unified_catalog.applied_v1.sql
+52256 v2/18_unified_catalog.sql
+ 
+ 
+ 
+182690 cashier_catalog_dev_before18_20261126_035319.dump
+147970 cashier_catalog_dev_before18_20261126_035319.sql
+1189 globals_before18_20261126_035319.sql
+ 
+ 
+ 
+59972 FINAL_INTEGRATION_PLAN_rev1_backup.md
+109 draft17_sha256.txt
+409 migration18_sha256.txt
+1395 migrations_01_16_sha256_copy.txt
+1395 migrations_01_16_sha256_repo.txt
+202193 schema_after_18.sql
+202193 schema_after_18_final.sql
+143283 schema_before_18.sql
+62983 schema_diff_18.txt
+ 
+ 
+ 
+65930 18_checks.sql
+1376 public_menu_sample.json
+2266 regression_seed.sql
+792 run_regression.sh
+4049 validate_sample.py
+[8] контрольные суммы файлов этапа:
+0f5c4cb3f44fbd76c221c2c580f624462946c11863e7552b84453ac64ffdc4a1  v2/18_unified_catalog.sql
+edf91bcacbb90d22521d11e813d938ffdf609d5c18f0bc6c097248153dd4b4ff  v2/18_unified_catalog.applied_v1.sql
+95d8b374fb4eee12d8b5d2dc18132564edf772795fb651175b376f30f59c8ee6  v2/18a_slug_guard_fix.sql
+6d7018077577c0df11e8960c4a7a039b4997e4945d755302bdb127a636a76ef5  v2/18_postcheck.sql
+042a006306cc15de5021950f5d7dd5012fe53130c157edf02952ac5d605d1e84  v2/tests/18_checks.sql
+84a7d74592d812d00e5fc51bdfe4a22ab6ef075910b2b6d151b54724364d6329  v2/tests/regression_seed.sql
+8d1bf1b43f4a77f31a78d8bf3f1cff033bdac820381e1b494145bf144c312ef4  v2/tests/run_regression.sh
+2ef585a17cde492afe1cb5b6068794af32f2dbf8cb28e837388509604bfa7aad  v2/tests/validate_sample.py

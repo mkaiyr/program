@@ -1,0 +1,11 @@
+psql:v2/tests/18_checks.sql:121: NOTICE:  service_role: EXECUTE на public_menu = t, на admin_catalog_diagnostics = t (политика 01–16, ключ только на сервере)
+psql:v2/tests/18_checks.sql:121: NOTICE:  ТЕСТ 1 (матрица прав по каталогу): OK
+psql:v2/tests/18_checks.sql:158: NOTICE:  ТЕСТ 2 (роли: anon / без пользователя / кассир / кухня / бар / неактивный админ / внутренние функции): OK
+psql:v2/tests/18_checks.sql:220: NOTICE:  ТЕСТ 3 (категории, стабильность и резервирование слагов): OK
+psql:v2/tests/18_checks.sql:315: NOTICE:  ТЕСТ 4 (блюда: публикация, подтверждение цены, диагностика, архив): OK
+psql:v2/tests/18_checks.sql:381: NOTICE:  ТЕСТ 5 (медиа: регистрация, привязка, использование, защита удаления): OK
+psql:v2/tests/18_checks.sql:422: NOTICE:  ТЕСТ 6 (справочники состава и аллергенов): OK
+psql:v2/tests/18_checks.sql:450: NOTICE:  ТЕСТ 7 (составное сохранение блюда, откат при ошибке): OK
+psql:v2/tests/18_checks.sql:495: NOTICE:  ТЕСТ 8 (формат public_menu, отсутствие внутренних полей и чужого состава): OK
+psql:v2/tests/18_checks.sql:521: NOTICE:  ТЕСТ 9 (окончательное удаление и резервирование слага, согласованность диагностики, updated_at): OK
+ВСЕ ПРОВЕРКИ МИГРАЦИИ 18 ПРОЙДЕНЫ

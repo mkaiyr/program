@@ -1,0 +1,6 @@
+validateCatalog: {'ok': True, 'errors': []}
+catalogFromRaw: {'ok': True, 'dishes': 2, 'categories': 1}
+аллергены по словарю из ответа (JS = независимый Python): [('cheeseburger', ['gluten'], ['eggs'], True), ('salat', ['gluten'], ['eggs'], True)]
+названия аллергенов: ['Глютенсодержащие злаки', 'Молоко и молочные продукты']
+валидатор отвергает плохой слаг и дробную цену: True True
+ИТОГ: образец public_menu() принят валидатором сайта

@@ -1,0 +1,23 @@
+OK   | таблицы созданы (8) | 8
+OK   | RLS включён на всех новых таблицах
+OK   | политик на новых таблицах нет
+OK   | нет прав у anon/authenticated/PUBLIC на новых таблицах
+OK   | нет прав на последовательность media_assets_id_seq у клиентов
+OK   | menu_items.updated_at (not null, default now())
+OK   | триггер menu_items_touch включён
+OK   | шесть триггеров слагов включены (по 3 на таблицу: guard, touch, reserve)
+OK   | ограничения: пары веса и подтверждения, уникальность слагов
+OK   | внешние ключи: каскады и запрет удаления используемого медиа
+OK   | индекс menu_item_public_photo_idx
+OK   | все 29 функций созданы
+OK   | у всех новых функций search_path = пусто
+OK   | SECURITY DEFINER у всех новых функций, кроме четырёх чистых помощников
+OK   | внутренние функции недоступны anon/authenticated/PUBLIC
+OK   | admin_*: authenticated — да; anon и PUBLIC — нет
+OK   | public_menu: anon и authenticated — да; PUBLIC — нет
+OK   | anon выполняет только employee_login_email и public_menu
+OK   | ни одна функция public не доступна PUBLIC
+OK   | итого объектов public: таблиц 19, функций 92, триггеров 15 | 19 / 92 / 15
+OK   | новые таблицы пусты (данные не создавались)
+OK   | прежние объекты на месте: функции 01–16 (63) и их права не изменились
+ИТОГ: все проверки post-check пройдены (22)
